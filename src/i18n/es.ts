@@ -105,7 +105,7 @@ export const es: Dict = {
   reason: {
     good: 'El trayecto está despejado y el enlace tiene un buen margen de desvanecimiento.',
     fixRaise: (m) => `Subir ambos mástiles unos ${m} m debería despejarlo.`,
-    fixImpossible: (max) => `Ni con mástiles de ${max} m se despeja; elige otros sitios.`,
+    fixImpossible: (max) => `Ni con mástiles de ${max} m se despeja; prueba con repetidores o con otros sitios.`,
     blocked: (km, fix) => `El terreno bloquea la línea de vista cerca de los ${km} km. ${fix}`,
     lowSignal: 'La señal llegaría por debajo de la sensibilidad del receptor. Usa antenas de mayor ganancia, más potencia o una frecuencia menor.',
     fresnel: (km, fix) => `La zona de Fresnel está parcialmente obstruida cerca de los ${km} km. ${fix}`,
@@ -171,12 +171,13 @@ export const es: Dict = {
   suggest: {
     button: 'Sugerir repetidores',
     hint: 'Busca hasta 2 sitios de repetidor sobre la línea recta entre A y B',
+    searching: 'Buscando…',
     title: 'Sugerencias de repetidores',
     intro: 'Sitios sobre la línea recta A–B, con cada tramo verificado contra el terreno real. Primero los que usan menos repetidores y mástiles más bajos.',
     option: (n) => `Opción ${n}`,
     one: '1 repetidor',
     two: '2 repetidores',
-    at: (km, elev) => `A ${km} km de A · ${elev} m sobre el nivel del mar`,
+    at: (km, elev) => `${km} km desde A · ${elev} m sobre el nivel del mar`,
     mast: (m) => `Mástil de ${m} m`,
     apply: 'Usar esta opción',
     good: 'Viable',

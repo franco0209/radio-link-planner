@@ -38,13 +38,15 @@ interface ResultPanelProps {
   onApplyHeight: (hop: number, extra: number) => void;
   /** Present only when repeaters are a sensible next step (the link is blocked and none are set yet). */
   onSuggest?: () => void;
+  /** True while the suggestion search runs. */
+  suggesting?: boolean;
 }
 
 const fadeTone = (db: number): Metric['tone'] => (db >= HEALTHY_FADE_MARGIN_DB ? 'ok' : db > 0 ? 'warn' : 'bad');
 const clearTone = (pct: number): Metric['tone'] => (pct >= 60 ? 'ok' : pct >= 0 ? 'warn' : 'bad');
 const availTone = (pct: number): Metric['tone'] => (pct >= 99.9 ? 'ok' : pct >= 99 ? 'warn' : 'bad');
 
-export function ResultPanel({ route, names, onApplyHeight, onSuggest }: ResultPanelProps) {
+export function ResultPanel({ route, names, onApplyHeight, onSuggest, suggesting }: ResultPanelProps) {
   const { t } = useI18n();
   const multi = route.hops.length > 1;
   const weak = route.hops[route.weakestHop];
@@ -107,8 +109,8 @@ export function ResultPanel({ route, names, onApplyHeight, onSuggest }: ResultPa
       )}
 
       {onSuggest && (
-        <button type="button" className="btn btn-block" onClick={onSuggest} title={t.suggest.hint}>
-          {t.suggest.button}
+        <button type="button" className="btn btn-block" onClick={onSuggest} disabled={suggesting} title={t.suggest.hint}>
+          {suggesting ? t.suggest.searching : t.suggest.button}
         </button>
       )}
 

@@ -75,6 +75,8 @@ export default function App() {
   const [retry, setRetry] = useState(0);
   const [suggestions, setSuggestions] = useState<RepeaterSuggestion[] | null>(null);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const suggestToken = useRef(0);
   /** Terrain per hop, keyed by its endpoints. Also seeded when a suggestion is applied. */
   const hopCache = useRef(new Map<string, TerrainSample[]>());
 
@@ -132,6 +134,7 @@ export default function App() {
 
   // Suggestions describe one specific situation, so any change invalidates them.
   useEffect(() => {
+    suggestToken.current += 1;
     setSuggestions(null);
     setPreviewIdx(null);
   }, [routeKey, params]);
@@ -201,9 +204,16 @@ export default function App() {
   };
 
   const suggest = () => {
-    if (!hopSamples || repeaters.length > 0) return;
+    if (!hopSamples || repeaters.length > 0 || suggesting) return;
     setPreviewIdx(null);
-    setSuggestions(suggestRepeaters(hopSamples[0], params));
+    setSuggesting(true);
+    const token = suggestToken.current;
+    // The worst case (nothing works) takes a few hundred ms; let the button repaint first.
+    setTimeout(() => {
+      const found = suggestRepeaters(hopSamples[0], params);
+      setSuggesting(false);
+      if (token === suggestToken.current) setSuggestions(found); // drop results if the scene changed meanwhile
+    }, 30);
   };
 
   const applySuggestion = (s: RepeaterSuggestion) => {
@@ -296,7 +306,7 @@ export default function App() {
       </header>
 
       <aside className="sidebar" aria-label={t.app.settings}>
-        {route && <ResultPanel route={route} names={names} onApplyHeight={applyHopHeight} onSuggest={canSuggest ? suggest : undefined} />}
+        {route && <ResultPanel route={route} names={names} onApplyHeight={applyHopHeight} onSuggest={canSuggest ? suggest : undefined} suggesting={suggesting} />}
 
         {suggestions && repeaters.length === 0 && (
           <SuggestionPanel

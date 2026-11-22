@@ -104,7 +104,7 @@ export const en = {
   reason: {
     good: 'The path is clear and the link has a healthy fade margin.',
     fixRaise: (m: number) => `Raising both masts by about ${m} m should clear it.`,
-    fixImpossible: (max: number) => `Even ${max} m masts do not clear it; pick different sites.`,
+    fixImpossible: (max: number) => `Even ${max} m masts do not clear it; try repeaters or different sites.`,
     blocked: (km: string, fix: string) => `Terrain blocks the direct path near ${km} km. ${fix}`,
     lowSignal: 'The signal would arrive below the receiver sensitivity. Use higher-gain antennas, more power or a lower frequency.',
     fresnel: (km: string, fix: string) => `The Fresnel zone is partly obstructed near ${km} km. ${fix}`,
@@ -170,6 +170,7 @@ export const en = {
   suggest: {
     button: 'Suggest repeaters',
     hint: 'Look for up to 2 repeater sites on the straight line between A and B',
+    searching: 'Searching…',
     title: 'Repeater suggestions',
     intro: 'Sites on the straight A–B line, each hop checked against the real terrain. Fewest repeaters and lowest masts first.',
     option: (n: number) => `Option ${n}`,

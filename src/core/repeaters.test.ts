@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PARAMS, analyzeLink, analyzeRoute, seriesAvailabilityPct, suggestRepeaters, type TerrainSample } from './index';
+import { DEFAULT_PARAMS, analyzeLink, analyzeRoute, orderRepeaters, seriesAvailabilityPct, suggestRepeaters, type TerrainSample } from './index';
 
 /** A synthetic path along the equator: flat ground at `base` m with optional narrow ridges. */
 function path(km: number, n: number, ridges: { atKm: number; h: number }[] = [], base = 100): TerrainSample[] {
@@ -36,6 +36,30 @@ describe('analyzeRoute', () => {
 
   it('rejects a heights array of the wrong length', () => {
     expect(() => analyzeRoute([path(5, 40)], DEFAULT_PARAMS, [10])).toThrow();
+  });
+});
+
+describe('orderRepeaters', () => {
+  const A = { lat: 0, lng: 0 };
+  const B = { lat: 0, lng: 0.3 };
+  const near = { lat: 0, lng: 0.1 };
+  const far = { lat: 0, lng: 0.2 };
+
+  it('puts the repeater closer to A first, whatever order they were given in', () => {
+    expect(orderRepeaters(A, B, [far, near])).toEqual([near, far]);
+    expect(orderRepeaters(A, B, [near, far])).toEqual([near, far]);
+  });
+
+  it('keeps the shorter route when a repeater is dragged off the axis', () => {
+    // Pulled far north, near the middle, it is still the first stop on the shortest path.
+    const dragged = { lat: 0.25, lng: 0.12 };
+    expect(orderRepeaters(A, B, [far, dragged])).toEqual([dragged, far]);
+    expect(orderRepeaters(A, B, [dragged, far])).toEqual([dragged, far]);
+  });
+
+  it('leaves zero or one repeater alone', () => {
+    expect(orderRepeaters(A, B, [])).toEqual([]);
+    expect(orderRepeaters(A, B, [near])).toEqual([near]);
   });
 });
 
@@ -109,6 +133,17 @@ describe('suggestRepeaters', () => {
   it('returns nothing when even two repeaters cannot help', () => {
     const p = { ...DEFAULT_PARAMS, txPowerDbm: -20 };
     expect(suggestRepeaters(path(10, 90), p)).toEqual([]);
+  });
+
+  it('stays fast in the worst case: a full-size path where nothing works', () => {
+    // Every pass runs: 1 and 2 repeaters at all five mast heights, then the fallback.
+    const p = { ...DEFAULT_PARAMS, txPowerDbm: -20 };
+    const t0 = performance.now();
+    const out = suggestRepeaters(path(48, 400), p);
+    const ms = performance.now() - t0;
+    expect(out).toEqual([]);
+    expect(ms).toBeLessThan(1500);
+    console.log(`worst-case suggestion search: ${Math.round(ms)} ms`);
   });
 
   it('handles tiny paths without throwing', () => {
