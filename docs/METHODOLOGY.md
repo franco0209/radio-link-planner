@@ -88,6 +88,8 @@ The suggestion search never calls the elevation service. Candidates lie on the A
 5. If nothing is fully viable, the best *marginal* options are returned and labelled as partial improvements. If nothing beats a blocked path, the tool says so and points to manual placement.
 6. For pairs, candidates are an even thinning plus the highest local peaks, so a narrow ridge top is not skipped.
 
+**Where the elevations come from.** If every point of a profile lies inside the bundled Copernicus tiles, elevations are read locally (bilinear, pixel values at pixel centres) with no network. Otherwise the whole request goes to the Open-Meteo elevation service, which serves the same dataset; a profile is never stitched from both. Inside the bundled area the off-line search therefore costs no API requests at all. Bilinear sampling differs slightly from the service's own; on four points around Arequipa the two agree within a few tens of metres, comparable to the DEM's own vertical error. At a tile seam the interpolation clamps to the edge pixel instead of reading the neighbouring tile.
+
 **Paradigm**
 
 - **On the line:** exhaustive search (brute force) over a bounded candidate set, with iterative deepening and memoisation. Not greedy, not divide and conquer, not a metaheuristic.

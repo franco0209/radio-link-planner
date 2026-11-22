@@ -29,7 +29,7 @@ In active development since **October 2026**: about a month of research on propa
 ## Features
 
 - **Map first.** Place sites A and B by clicking, dragging pins, searching a place name or pasting `lat, lng`. Street and topographic map styles.
-- **Real terrain.** Elevation profile from the Copernicus 90 m DEM (via Open-Meteo), sampled about every 120 m.
+- **Real terrain.** Elevation profile from the Copernicus 90 m DEM, sampled about every 120 m. Southern Peru around Arequipa (lat −18° to −15°, lng −73° to −70°) is bundled with the app, so it loads instantly and makes **no API calls**; anywhere else falls back to the Open-Meteo elevation service.
 - **Fresnel zone and earth curvature.** The profile shows terrain with earth bulge (configurable k-factor), the line of sight and the first Fresnel zone, with the 60 % core highlighted.
 - **Plain-language verdict.** *Viable*, *Marginal* or *Will not work*, with the reason and the fix. Never colour alone: every state has an icon and a label.
 - **"How high do I need to build?"** Finds the smallest equal mast-height increase that reaches 60 % Fresnel clearance, applied with one click.

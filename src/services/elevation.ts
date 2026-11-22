@@ -1,5 +1,6 @@
 import { distanceKm, samplePath } from '../core/geo';
 import type { LatLng, TerrainSample } from '../core/types';
+import { localElevations } from './dem';
 import { ServiceError } from './errors';
 
 const ENDPOINT = 'https://api.open-meteo.com/v1/elevation';
@@ -24,7 +25,7 @@ async function fetchChunk(points: LatLng[], signal?: AbortSignal): Promise<numbe
   return json.elevation;
 }
 
-/** Terrain elevation profile between a and b (Copernicus 90 m DEM via Open-Meteo). */
+/** Terrain elevation profile between a and b (Copernicus 90 m DEM: bundled tiles where available, else Open-Meteo). */
 export async function fetchTerrainProfile(a: LatLng, b: LatLng, signal?: AbortSignal): Promise<TerrainSample[]> {
   const total = distanceKm(a, b);
   const count = sampleCountFor(total);
@@ -33,10 +34,7 @@ export async function fetchTerrainProfile(a: LatLng, b: LatLng, signal?: AbortSi
   if (hit) return hit;
 
   const points = samplePath(a, b, count);
-  const chunks: LatLng[][] = [];
-  for (let i = 0; i < points.length; i += MAX_PER_REQUEST) chunks.push(points.slice(i, i + MAX_PER_REQUEST));
-  const parts = await Promise.all(chunks.map((c) => fetchChunk(c, signal)));
-  const elevations = parts.flat();
+  const elevations = (await localElevations(points)) ?? (await fetchRemote(points, signal));
 
   const samples: TerrainSample[] = points.map((p, i) => ({
     lat: p.lat,
@@ -48,8 +46,13 @@ export async function fetchTerrainProfile(a: LatLng, b: LatLng, signal?: AbortSi
   return samples;
 }
 
-/** Ground elevation of arbitrary points. Chunks of 100, two requests at a time to stay clear of the rate limit. */
+/** Ground elevation of arbitrary points: bundled tiles when they cover them all, else the elevation service. */
 export async function fetchElevations(points: LatLng[], signal?: AbortSignal): Promise<number[]> {
+  return (await localElevations(points)) ?? (await fetchRemote(points, signal));
+}
+
+/** The elevation service. Chunks of 100, two requests at a time to stay clear of the rate limit. */
+async function fetchRemote(points: LatLng[], signal?: AbortSignal): Promise<number[]> {
   const chunks: LatLng[][] = [];
   for (let i = 0; i < points.length; i += MAX_PER_REQUEST) chunks.push(points.slice(i, i + MAX_PER_REQUEST));
   const parts: number[][] = [];
