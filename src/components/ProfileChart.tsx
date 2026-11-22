@@ -1,13 +1,21 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { LinkAnalysis, LinkParams, TerrainSample } from '../core/types';
+import type { RouteAnalysis, TerrainSample } from '../core/types';
 import { useI18n } from '../i18n';
 
+export interface HoverPos {
+  hop: number;
+  i: number;
+}
+
 interface ProfileChartProps {
-  analysis: LinkAnalysis;
-  samples: TerrainSample[];
-  params: LinkParams;
-  onHover: (index: number | null) => void;
-  hoverIndex: number | null;
+  route: RouteAnalysis;
+  hopSamples: TerrainSample[][];
+  /** Node names in route order: A, R1, R2, B. */
+  names: string[];
+  /** Mast height at every node, m. */
+  heights: number[];
+  hover: HoverPos | null;
+  onHover: (pos: HoverPos | null) => void;
 }
 
 const HEIGHT = 280;
@@ -24,7 +32,7 @@ function niceTicks(min: number, max: number, target: number): number[] {
   return ticks;
 }
 
-export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }: ProfileChartProps) {
+export function ProfileChart({ route, hopSamples, names, heights, hover, onHover }: ProfileChartProps) {
   const { t } = useI18n();
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(720);
@@ -43,56 +51,108 @@ export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }:
     };
   }, []);
 
-  const { profile, distanceKm } = analysis;
+  const totalKm = route.totalKm;
+  const multi = route.hops.length > 1;
+
+  /** Distance along the path where each hop starts. */
+  const offsets = useMemo(() => {
+    const out: number[] = [];
+    let acc = 0;
+    for (const h of route.hops) {
+      out.push(acc);
+      acc += h.distanceKm;
+    }
+    return out;
+  }, [route]);
 
   const geom = useMemo(() => {
-    const topLine = profile.map((p) => p.los + p.fresnel);
-    const bottomLine = profile.map((p) => p.los - p.fresnel);
-    const yMinRaw = Math.min(...profile.map((p) => p.ground), ...bottomLine.slice(1, -1));
-    const yMaxRaw = Math.max(...profile.map((p) => p.ground), ...topLine);
+    let yMinRaw = Infinity;
+    let yMaxRaw = -Infinity;
+    for (const h of route.hops) {
+      h.profile.forEach((p, i) => {
+        yMinRaw = Math.min(yMinRaw, p.ground);
+        yMaxRaw = Math.max(yMaxRaw, p.ground, p.los + p.fresnel);
+        if (i > 0 && i < h.profile.length - 1) yMinRaw = Math.min(yMinRaw, p.los - p.fresnel);
+      });
+    }
     const pad = Math.max(5, (yMaxRaw - yMinRaw) * 0.08);
     const yMin = Math.floor((yMinRaw - pad) / 5) * 5;
     const yMax = Math.ceil((yMaxRaw + pad) / 5) * 5;
     const innerW = width - M.left - M.right;
     const innerH = HEIGHT - M.top - M.bottom;
-    const x = (d: number) => M.left + (d / distanceKm) * innerW;
+    const x = (d: number) => M.left + (d / totalKm) * innerW;
     const y = (h: number) => M.top + (1 - (h - yMin) / (yMax - yMin)) * innerH;
-    return { x, y, yMin, yMax, innerW, innerH };
-  }, [profile, distanceKm, width]);
+    return { x, y, yMin, yMax };
+  }, [route, width, totalKm]);
 
   const { x, y, yMin, yMax } = geom;
-  const line = (vals: number[]) => profile.map((p, i) => `${i ? 'L' : 'M'}${x(p.d).toFixed(1)},${y(vals[i]).toFixed(1)}`).join('');
-
-  const groundPath = line(profile.map((p) => p.ground));
+  const f = (n: number) => n.toFixed(1);
   const base = y(yMin);
-  const groundArea = `${groundPath}L${x(distanceKm).toFixed(1)},${base}L${x(0).toFixed(1)},${base}Z`;
 
-  const band = (k: number) => {
-    const up = profile.map((p, i) => `${i ? 'L' : 'M'}${x(p.d).toFixed(1)},${y(p.los + p.fresnel * k).toFixed(1)}`).join('');
-    const down = [...profile]
-      .reverse()
-      .map((p) => `L${x(p.d).toFixed(1)},${y(p.los - p.fresnel * k).toFixed(1)}`)
-      .join('');
-    return `${up}${down}Z`;
-  };
+  const hopPaths = route.hops.map((h, k) => {
+    const off = offsets[k];
+    const pts = h.profile;
+    const line = (val: (i: number) => number) => pts.map((p, i) => `${i ? 'L' : 'M'}${f(x(off + p.d))},${f(y(val(i)))}`).join('');
+    const ground = line((i) => pts[i].ground);
+    const band = (kk: number) => {
+      const up = pts.map((p, i) => `${i ? 'L' : 'M'}${f(x(off + p.d))},${f(y(p.los + p.fresnel * kk))}`).join('');
+      const down = [...pts].reverse().map((p) => `L${f(x(off + p.d))},${f(y(p.los - p.fresnel * kk))}`).join('');
+      return `${up}${down}Z`;
+    };
+    return {
+      ground,
+      area: `${ground}L${f(x(off + h.distanceKm))},${base}L${f(x(off))},${base}Z`,
+      los: line((i) => pts[i].los),
+      full: band(1),
+      core: band(0.6),
+    };
+  });
 
-  const losPath = line(profile.map((p) => p.los));
-  const xTicks = niceTicks(0, distanceKm, Math.max(3, Math.floor((width - M.left - M.right) / 90)));
+  const nodes = names.map((name, k) => {
+    const hop = k < route.hops.length ? route.hops[k] : route.hops[k - 1];
+    const p = k < route.hops.length ? hop.profile[0] : hop.profile[hop.profile.length - 1];
+    const at = k < route.hops.length ? offsets[k] : totalKm;
+    return { name, at, ground: p.ground, los: p.los, height: heights[k] };
+  });
+
+  const xTicks = niceTicks(0, totalKm, Math.max(3, Math.floor((width - M.left - M.right) / 90)));
   const yTicks = niceTicks(yMin, yMax, 5);
 
-  const worstIdx = profile.reduce((w, p, i) => (i > 0 && i < profile.length - 1 && p.clearanceRatio < profile[w].clearanceRatio ? i : w), 1);
-  const worst = profile[Math.min(worstIdx, profile.length - 1)];
-  const hp = hoverIndex !== null ? profile[hoverIndex] : null;
+  // Flat list of every sample so pointer and keyboard can walk the whole path.
+  const flat = useMemo(() => route.hops.flatMap((h, hop) => h.profile.map((p, i) => ({ hop, i, at: offsets[hop] + p.d }))), [route, offsets]);
 
-  const onMove = (clientX: number, rect: DOMRect) => {
-    const px = clientX - rect.left;
-    const d = ((px - M.left) / (rect.width - M.left - M.right)) * distanceKm;
-    const idx = Math.round((d / distanceKm) * (profile.length - 1));
-    onHover(Math.max(0, Math.min(profile.length - 1, idx)));
+  const nearest = (clientX: number, rect: DOMRect) => {
+    const d = ((clientX - rect.left - M.left) / (rect.width - M.left - M.right)) * totalKm;
+    let best = flat[0];
+    let bestDist = Infinity;
+    for (const s of flat) {
+      const dist = Math.abs(s.at - d);
+      if (dist < bestDist) {
+        best = s;
+        bestDist = dist;
+      }
+    }
+    onHover({ hop: best.hop, i: best.i });
   };
 
-  const summary = t.chart.summary(distanceKm.toFixed(1), (analysis.minClearanceRatio * 100).toFixed(0), analysis.worstAtKm.toFixed(1));
-  const tooltipLeft = hp ? Math.min(width - 190, Math.max(8, x(hp.d) + 12)) : 0;
+  const hovered = hover && route.hops[hover.hop]?.profile[hover.i] ? hover : null;
+  const hp = hovered ? route.hops[hovered.hop].profile[hovered.i] : null;
+  const hAt = hovered && hp ? offsets[hovered.hop] + hp.d : 0;
+  const hGroundM = hovered ? hopSamples[hovered.hop]?.[hovered.i]?.h ?? 0 : 0;
+
+  const worst = route.hops[route.weakestHop];
+  const summary = t.chart.summary(totalKm.toFixed(1), (route.minClearanceRatio * 100).toFixed(0), (offsets[route.weakestHop] + worst.worstAtKm).toFixed(1));
+  const tooltipLeft = hp ? Math.min(width - 190, Math.max(8, x(hAt) + 12)) : 0;
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') return onHover(null);
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const cur = hovered ? flat.findIndex((s) => s.hop === hovered.hop && s.i === hovered.i) : 0;
+    const step = Math.max(1, Math.round(flat.length / 40)) * (e.key === 'ArrowRight' ? 1 : -1);
+    const next = flat[Math.max(0, Math.min(flat.length - 1, cur + step))];
+    onHover({ hop: next.hop, i: next.i });
+  };
 
   return (
     <div className="chart" ref={wrap}>
@@ -102,30 +162,22 @@ export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }:
         role="img"
         aria-label={summary}
         tabIndex={0}
-        onPointerMove={(e) => onMove(e.clientX, e.currentTarget.getBoundingClientRect())}
+        onPointerMove={(e) => nearest(e.clientX, e.currentTarget.getBoundingClientRect())}
         onPointerLeave={() => onHover(null)}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-            e.preventDefault();
-            const cur = hoverIndex ?? 0;
-            onHover(Math.max(0, Math.min(profile.length - 1, cur + (e.key === 'ArrowRight' ? 1 : -1) * Math.max(1, Math.round(profile.length / 40)))));
-          }
-          if (e.key === 'Escape') onHover(null);
-        }}
+        onKeyDown={onKey}
         onBlur={() => onHover(null)}
       >
-        {/* grid + axes */}
-        {yTicks.map((t) => (
-          <g key={`y${t}`}>
-            <line className="grid" x1={M.left} x2={width - M.right} y1={y(t)} y2={y(t)} />
-            <text className="tick" x={M.left - 8} y={y(t)} textAnchor="end" dominantBaseline="middle">
-              {t}
+        {yTicks.map((tk) => (
+          <g key={`y${tk}`}>
+            <line className="grid" x1={M.left} x2={width - M.right} y1={y(tk)} y2={y(tk)} />
+            <text className="tick" x={M.left - 8} y={y(tk)} textAnchor="end" dominantBaseline="middle">
+              {tk}
             </text>
           </g>
         ))}
-        {xTicks.map((t) => (
-          <text key={`x${t}`} className="tick" x={x(t)} y={HEIGHT - 10} textAnchor="middle">
-            {t}
+        {xTicks.map((tk) => (
+          <text key={`x${tk}`} className="tick" x={x(tk)} y={HEIGHT - 10} textAnchor="middle">
+            {tk}
           </text>
         ))}
         <text className="axis-label" x={M.left} y={11}>
@@ -135,41 +187,44 @@ export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }:
           {t.chart.km}
         </text>
 
-        {/* Fresnel zone: full first zone, then the 60 % that must stay clear */}
-        <path className="fresnel-full" d={band(1)} />
-        <path className="fresnel-core" d={band(0.6)} />
+        {hopPaths.map((h, k) => (
+          <g key={k}>
+            <path className="fresnel-full" d={h.full} />
+            <path className="fresnel-core" d={h.core} />
+            <path className="ground" d={h.area} />
+            <path className="ground-line" d={h.ground} />
+            <path className="los" d={h.los} />
+          </g>
+        ))}
 
-        {/* terrain (includes earth curvature) */}
-        <path className="ground" d={groundArea} />
-        <path className="ground-line" d={groundPath} />
-
-        {/* line of sight */}
-        <path className="los" d={losPath} />
-
-        {/* masts */}
-        {[profile[0], profile[profile.length - 1]].map((p, i) => (
-          <g key={i}>
-            <line className="mast" x1={x(p.d)} x2={x(p.d)} y1={y(p.ground)} y2={y(p.los)} />
-            <circle className="mast-top" cx={x(p.d)} cy={y(p.los)} r={5} />
-            <text className="mast-label" x={x(p.d) + (i === 0 ? 8 : -8)} y={y(p.los) - 10} textAnchor={i === 0 ? 'start' : 'end'}>
-              {i === 0 ? `A · ${params.heightAM} m` : `B · ${params.heightBM} m`}
+        {/* hop boundaries are marked by their repeater masts */}
+        {nodes.map((n, k) => (
+          <g key={n.name}>
+            <line className="mast" x1={x(n.at)} x2={x(n.at)} y1={y(n.ground)} y2={y(n.los)} />
+            <circle className="mast-top" cx={x(n.at)} cy={y(n.los)} r={5} />
+            <text
+              className="mast-label"
+              x={x(n.at) + (k === 0 ? 8 : k === nodes.length - 1 ? -8 : 0)}
+              y={y(n.los) - 10}
+              textAnchor={k === 0 ? 'start' : k === nodes.length - 1 ? 'end' : 'middle'}
+            >
+              {n.name} · {n.height} m
             </text>
           </g>
         ))}
 
-        {/* worst point */}
-        {worst && analysis.verdict !== 'good' && (
-          <g>
-            <circle className={`worst worst-${analysis.verdict}`} cx={x(worst.d)} cy={y(worst.ground)} r={6} />
-          </g>
-        )}
+        {/* worst point of every hop that is not healthy */}
+        {route.hops.map((h, k) => {
+          if (h.verdict === 'good') return null;
+          const wp = h.profile.reduce((w, p, i) => (i > 0 && i < h.profile.length - 1 && p.clearanceRatio < w.clearanceRatio ? p : w), h.profile[1] ?? h.profile[0]);
+          return <circle key={k} className={`worst worst-${h.verdict}`} cx={x(offsets[k] + wp.d)} cy={y(wp.ground)} r={6} />;
+        })}
 
-        {/* hover */}
         {hp && (
           <g pointerEvents="none">
-            <line className="cursor" x1={x(hp.d)} x2={x(hp.d)} y1={M.top} y2={HEIGHT - M.bottom} />
-            <circle className="cursor-dot" cx={x(hp.d)} cy={y(hp.ground)} r={4} />
-            <circle className="cursor-dot los-dot" cx={x(hp.d)} cy={y(hp.los)} r={4} />
+            <line className="cursor" x1={x(hAt)} x2={x(hAt)} y1={M.top} y2={HEIGHT - M.bottom} />
+            <circle className="cursor-dot" cx={x(hAt)} cy={y(hp.ground)} r={4} />
+            <circle className="cursor-dot los-dot" cx={x(hAt)} cy={y(hp.los)} r={4} />
           </g>
         )}
       </svg>
@@ -186,10 +241,13 @@ export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }:
         </span>
       </div>
 
-      {hp && (
+      {hp && hovered && (
         <div className="tooltip" style={{ left: tooltipLeft, top: 14 }} role="status">
-          <strong>{hp.d.toFixed(2)} km</strong>
-          <span>{t.chart.ground((samples[hoverIndex!]?.h ?? 0).toFixed(0))}</span>
+          <strong>
+            {multi && `${t.route.hopName(names[hovered.hop], names[hovered.hop + 1])} · `}
+            {hAt.toFixed(2)} km
+          </strong>
+          <span>{t.chart.ground(hGroundM.toFixed(0))}</span>
           <span className={hp.clearance < 0 ? 'bad' : hp.clearanceRatio < 0.6 ? 'warn' : 'ok'}>
             {hp.clearance < 0 ? t.chart.blockedBy : t.chart.clearance} {Math.abs(hp.clearance).toFixed(1)} m
             {hp.fresnel > 0 && ` (${(hp.clearanceRatio * 100).toFixed(0)}% ${t.chart.fresnelShort})`}

@@ -62,7 +62,12 @@ function extraHeightNeeded(samples: TerrainSample[], p: LinkParams): { m: number
   return { m: Math.ceil(hi * 2) / 2, reachable: true };
 }
 
-export function analyzeLink(samples: TerrainSample[], p: LinkParams): LinkAnalysis {
+export interface AnalyzeOptions {
+  /** Run the mast-height bisection (default). Turn off in tight loops: it costs ~30x the rest. */
+  heightSearch?: boolean;
+}
+
+export function analyzeLink(samples: TerrainSample[], p: LinkParams, opts: AnalyzeOptions = {}): LinkAnalysis {
   if (samples.length < 2) throw new Error('At least two terrain samples are required');
   const distanceKm = samples[samples.length - 1].d;
   const profile = buildProfile(samples, p);
@@ -88,7 +93,7 @@ export function analyzeLink(samples: TerrainSample[], p: LinkParams): LinkAnalys
   else if (worst.clearanceRatio < TARGET_CLEARANCE || fadeMarginDb < HEALTHY_FADE_MARGIN_DB) verdict = 'marginal';
   else verdict = 'good';
 
-  const extra = extraHeightNeeded(samples, p);
+  const extra = opts.heightSearch === false ? { m: 0, reachable: false } : extraHeightNeeded(samples, p);
 
   return {
     distanceKm,

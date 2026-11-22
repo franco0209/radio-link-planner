@@ -17,6 +17,7 @@ In active development since **October 2026**: about a month of research on propa
 - **Plain-language verdict.** *Viable*, *Marginal* or *Will not work*, with the reason and the fix. Never colour alone: every state has an icon and a label.
 - **"How high do I need to build?"** Finds the smallest equal mast-height increase that reaches 60 % Fresnel clearance, applied with one click.
 - **Link budget.** EIRP, free-space loss, diffraction loss from the worst obstruction, received level, fade margin and yearly availability (Vigants-Barnett).
+- **Repeaters, never the first option.** Add up to 2 repeaters by hand at any time (click the map, drag them anywhere, set each mast height). If a link is blocked, a **Suggest repeaters** button appears below the "raise the masts" fix. It searches the A–B line using the terrain already loaded, so it costs no extra elevation requests, and ranks options by fewest repeaters, then lowest mast, then end-to-end availability. Each hop gets its own verdict and colour, and the route reports the weakest hop and the end-to-end availability.
 - **Linked chart and map.** Hover (or use the arrow keys on) the profile and the exact spot lights up on the map.
 - **Shareable.** The whole scenario lives in the URL. Copy the link, bookmark it, or print a one-page PDF report.
 - **Three languages.** English, Español and Português, detected from the browser and switchable from the header. Text in the core is never hard-coded: results are structured and phrased by the UI.
@@ -70,7 +71,9 @@ React 19, TypeScript, Vite, Leaflet, Vitest. The chart is hand-written SVG, so t
 
 ## Roadmap
 
-- [ ] Multiple hops and repeaters
+- [x] Repeaters (up to 2): manual placement and suggestions along the A–B line
+- [ ] Repeater search off the A–B line (corridor search for nearby hilltops)
+- [ ] More than 2 repeaters and per-repeater equipment
 - [ ] Equipment library with real radio datasheets
 - [ ] Rain fading for licensed bands (ITU-R P.838 / P.530)
 - [ ] Obstruction heights from building and tree layers

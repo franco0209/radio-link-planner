@@ -77,6 +77,42 @@ export interface LinkAnalysis {
   reason: Reason;
 }
 
+/** A repeater site: an active relay that receives on one hop and retransmits on the next. */
+export interface Repeater extends LatLng {
+  /** Mast height above ground, m. */
+  heightM: number;
+}
+
+/** Multi-hop result. Hops are ordered from site A to site B. */
+export interface RouteAnalysis {
+  hops: LinkAnalysis[];
+  /** Sum of the hop lengths, km (longer than the straight A-B line when repeaters are off-axis). */
+  totalKm: number;
+  /** Worst verdict among the hops. */
+  verdict: Verdict;
+  /** End-to-end yearly availability (%): hops are in series, so the product of their availabilities. */
+  availabilityPct: number;
+  /** Index of the hop that limits the route. */
+  weakestHop: number;
+  minFadeMarginDb: number;
+  minClearanceRatio: number;
+}
+
+export interface SuggestedRepeater extends Repeater {
+  /** Distance from A along the A-B line, km. */
+  atKm: number;
+  /** Ground elevation at the site, m a.s.l. */
+  elevationM: number;
+}
+
+export interface RepeaterSuggestion {
+  repeaters: SuggestedRepeater[];
+  verdict: Verdict;
+  availabilityPct: number;
+  minFadeMarginDb: number;
+  hopKm: number[];
+}
+
 export type Reason =
   | { kind: 'good' }
   | { kind: 'blocked'; worstKm: number; extraM: number; reachable: boolean }

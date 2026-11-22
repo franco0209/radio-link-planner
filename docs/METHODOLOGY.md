@@ -63,7 +63,39 @@ with terrain factor `C` = 4 (smooth or over water), 1 (average), 0.25 (mountaino
 
 A bisection search finds the smallest uniform height increase (up to 200 m) at which the worst clearance reaches 60 % of the first Fresnel radius. The test suite verifies that applying the suggested increase really fixes the path.
 
+## 8. Repeaters and multi-hop routes
+
+A route is `A → R1 → R2 → B` with at most two repeaters. Each hop gets its own terrain profile and is analysed exactly like a single link.
+
+**Assumptions**
+
+- Every hop uses the global radio settings: TX gain = *Antenna gain A*, RX gain = *Antenna gain B*, same power, frequency and sensitivity.
+- Repeaters are **active** (receive on one hop, retransmit on the next) and each hop is assumed to use a **different channel**, so self-interference and co-channel effects are not modelled.
+- Each repeater has its own mast height (default 15 m).
+- **Route verdict** = the worst hop. The headline is that hop's explanation, prefixed with its name (for example "A → R1").
+- **End-to-end availability** = the product of the hop availabilities, because the hops are in series. This assumes fading on different hops is independent, which is optimistic for hops that share weather.
+- The chart's horizontal axis is **distance along the path**. With repeaters off the A–B line this is longer than the straight line, and the "Total distance" metric says so.
+- With two manual repeaters, the order is the one that gives the **shorter total path**, so it does not flip when you drag a repeater off-axis.
+
+**Suggestions**
+
+The suggestion search never calls the elevation service. Candidates lie on the A–B line, so every hop is a slice of the terrain profile already loaded, re-based so each hop starts at distance 0. That lets the same `analyzeLink` code compute earth bulge, Fresnel radius, diffraction and fade margin for each hop.
+
+1. Try **1 repeater** at every interior sample (keeping a minimum hop length). Try **2 repeaters** only if no 1-repeater option is fully viable. Two are never offered when one is enough.
+2. For each count, try repeater mast heights from a ladder (10, 15, 20, 30, 45 m) and **stop at the lowest height that works**.
+3. "Works" means every hop is *viable* (60 % Fresnel clearance and 15 dB fade margin).
+4. Rank by end-to-end availability, then by the weakest-hop fade margin, and return up to three options kept at least 8 % of the path apart.
+5. If nothing is fully viable, the best *marginal* options are returned and labelled as partial improvements. If nothing beats a blocked path, the tool says so and points to manual placement.
+6. For pairs, candidates are an even thinning plus the highest local peaks, so a narrow ridge top is not skipped.
+
+Applying a suggestion reuses the exact terrain slices it was scored on, so the result you see matches the card you clicked.
+
+The suggest button appears only when the direct link is **blocked** and no repeaters are set. Marginal links do not get it: raising the masts or adjusting the radio comes first.
+
 ## Known limits
+
+- Repeater suggestions only search the **straight A–B line**. A hilltop off the line may be better; place a repeater by hand and drag it there.
+- When you add repeaters yourself, the tool analyses the route you drew but does not propose a better one.
 
 - No rain fading, atmospheric absorption or foliage model (use *Extra losses* to account for them).
 - Bare-earth terrain only; clutter is not modelled.
