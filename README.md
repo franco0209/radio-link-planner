@@ -27,7 +27,7 @@ In active development since **October 2026**: about a month of research on propa
 
 This is the part that sets the project apart: a blocked link gets a **verified repeater plan**, not a guess.
 
-**Is it a heuristic?** No metaheuristic (no genetic algorithm, no annealing) and nothing random. Evaluating one candidate is closed-form physics (terrain, earth bulge, Fresnel, diffraction, link budget). Only *where to put the repeaters* is combinatorial, and that space is small and discrete, so the search is **deterministic and exhaustive over a discretised candidate set**, organised as iterative deepening with memoisation.
+Evaluating one candidate is closed-form physics (terrain, earth bulge, Fresnel, diffraction, link budget). Only *where to put the repeaters* is combinatorial, and that space is small and discrete, so the search is **deterministic and exhaustive over a discretised candidate set**, organised as iterative deepening with memoisation.
 
 **Input**
 
