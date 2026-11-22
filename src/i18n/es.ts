@@ -125,6 +125,8 @@ export const es: Dict = {
       `Perfil del terreno de ${km} kilómetros. El peor despeje es el ${pct} por ciento de la primera zona de Fresnel, a los ${at} kilómetros.`,
   },
   map: {
+    zoomIn: 'Acercar',
+    zoomOut: 'Alejar',
     label: 'Mapa. Haz clic para colocar sitios y arrastra los pines para moverlos.',
     pinTitle: (n) => `Sitio ${n} (arrastra para mover)`,
     style: 'Estilo del mapa',

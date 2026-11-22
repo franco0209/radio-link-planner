@@ -82,8 +82,13 @@ export function MapView({ a, b, verdict, hover, placing, fitKey, dark, onMapClic
     tiles.current.bringToBack();
   }, [layer]);
 
-  // Keep pin tooltips in the current language.
+  // Keep pin and zoom tooltips in the current language.
   useEffect(() => {
+    const root = el.current;
+    root?.querySelector('.leaflet-control-zoom-in')?.setAttribute('title', t.map.zoomIn);
+    root?.querySelector('.leaflet-control-zoom-in')?.setAttribute('aria-label', t.map.zoomIn);
+    root?.querySelector('.leaflet-control-zoom-out')?.setAttribute('title', t.map.zoomOut);
+    root?.querySelector('.leaflet-control-zoom-out')?.setAttribute('aria-label', t.map.zoomOut);
     (['a', 'b'] as const).forEach((k) => markers.current[k]?.getElement()?.setAttribute('title', t.map.pinTitle(k.toUpperCase())));
   }, [t]);
 

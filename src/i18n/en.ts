@@ -124,6 +124,8 @@ export const en = {
       `Terrain profile over ${km} kilometres. Worst clearance is ${pct} percent of the first Fresnel zone at ${at} kilometres.`,
   },
   map: {
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
     label: 'Map. Click to place sites, drag pins to move them.',
     pinTitle: (n: string) => `Site ${n} (drag to move)`,
     style: 'Map style',

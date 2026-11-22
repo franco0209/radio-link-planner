@@ -34,6 +34,9 @@ function errorText(t: ReturnType<typeof useI18n>['t'], e: unknown): string {
   return t.errors.loadFailed;
 }
 
+/** Share link without ?lang= so the recipient's own language wins. */
+const shareUrl = () => window.location.origin + window.location.pathname + window.location.hash;
+
 function readTheme(): 'light' | 'dark' {
   try {
     const saved = localStorage.getItem('theme');
@@ -133,11 +136,11 @@ export default function App() {
 
   const share = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(shareUrl());
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt(t.app.copyPrompt, window.location.href);
+      window.prompt(t.app.copyPrompt, shareUrl());
     }
   };
 

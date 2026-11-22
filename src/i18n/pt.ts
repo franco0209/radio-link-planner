@@ -125,6 +125,8 @@ export const pt: Dict = {
       `Perfil do terreno de ${km} quilômetros. A pior folga é de ${pct} por cento da primeira zona de Fresnel, aos ${at} quilômetros.`,
   },
   map: {
+    zoomIn: 'Aproximar',
+    zoomOut: 'Afastar',
     label: 'Mapa. Clique para colocar locais e arraste os pinos para movê-los.',
     pinTitle: (n) => `Local ${n} (arraste para mover)`,
     style: 'Estilo do mapa',
