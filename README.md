@@ -5,6 +5,10 @@ Drop two sites on a map and see, in seconds, whether a wireless link will work: 
 
 > Most online link calculators are dated, cramped and hard to trust. This one aims to be the opposite: clear, fast, and honest about its assumptions.
 
+## Project status
+
+In active development since **October 2026**: about a month of research on propagation models, terrain data and UX, followed by this first working version. The roadmap below shows what is next.
+
 ## Features
 
 - **Map first.** Place sites A and B by clicking, dragging pins, searching a place name or pasting `lat, lng`. Street and topographic map styles.
