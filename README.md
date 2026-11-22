@@ -29,6 +29,15 @@ This is the part that sets the project apart: a blocked link gets a **verified r
 
 Evaluating one candidate is closed-form physics (terrain, earth bulge, Fresnel, diffraction, link budget). Only *where to put the repeaters* is combinatorial, and that space is small and discrete, so the search is **deterministic and exhaustive over a discretised candidate set**, organised as iterative deepening with memoisation.
 
+**Algorithmic paradigm, at a glance**
+
+| Stage | Paradigm | Exact? |
+|---|---|---|
+| Repeaters **on** the A–B line | **Exhaustive search (brute force) over a bounded candidate set**, with iterative deepening (fewest repeaters, then lowest mast) and memoisation (light dynamic programming) | Optimal for 1 repeater, and for 2 when `C ≤ 90`. Above that the candidate set is pruned (thinning plus local peaks), not the scoring |
+| One repeater **off** the line | **Heuristic funnel (filter and refine)**: restrict to an elliptical corridor, coarse grid, pre-score on interpolated terrain with no network, then verify only the best few on real terrain | No. A narrow peak between grid nodes can be missed. Whatever it reports was verified on real terrain |
+
+It is **not** a greedy, divide-and-conquer or genetic/metaheuristic algorithm: there is no randomness, and nothing is decided by committing to a locally best step. The only greedy-like part is the stopping rule (stop at the first layer that has a viable route).
+
 **Input**
 
 - The A–B terrain profile already loaded: `n` samples (distance, ground elevation, coordinates), `n ≤ 400`, about one every 120 m.
@@ -65,7 +74,7 @@ Why this ordering: a solution with one repeater is never replaced by one with tw
 | Memory | `O(P² + n)` | Memo table and cached slices |
 | Best case | `O(C · n)` | Stops at the first mast height with a viable single repeater |
 
-Measured on a desktop: about **20 ms** for the real Arequipa → Chiguata example, **under 600 ms** in the worst case (400 samples and nothing viable, so every pass runs). The search runs without blocking the interface, and it makes **no extra elevation requests**.
+Measured on a desktop: about **20 ms** for the real Arequipa → Chiguata example, **under 600 ms** in the worst case (400 samples and nothing viable, so every pass runs). The on-line search runs without blocking the interface and makes **no extra elevation requests**.
 
 **How exact is it?**
 
@@ -73,6 +82,8 @@ Measured on a desktop: about **20 ms** for the real Arequipa → Chiguata exampl
 - **2 repeaters: optimal when `C ≤ 90`.** Above that the candidate set is pruned (even thinning plus the highest local peaks, because a ridge top is the classic site). The pruning is on *where to look*, never on how a route is scored.
 - Both claims are checked in the test suite against an independent brute force that goes through the public route API.
 - Limits: positions are on the straight A–B line and on a ~120 m grid, and fading on different hops is assumed independent.
+
+**Off the line (heuristic).** If the line search finds no single viable repeater, a second stage looks for one repeater beside the line. Each site off the line needs new terrain from the elevation service, which rate-limits, so the goal is to fetch as little as possible: (1) allow only sites with `|AR| + |RB| ≤ 1.15 · |AB|` and at most 20 % of `|AB|` off the line; (2) fetch a 20 × 9 grid over that corridor (2 requests); (3) pre-score every node on terrain interpolated from the grid, with no network; (4) fetch real terrain for the best 5 sites, one at a time, and stop once 3 are confirmed viable. That is roughly 10 to 25 requests instead of hundreds. Details in [docs/METHODOLOGY.md](docs/METHODOLOGY.md#8-repeaters-and-multi-hop-routes).
 
 **A graph view, for later.** Treat candidate sites as nodes and a viable hop as an edge weighted `−ln(availability)`. Then "at most k repeaters" is a hop-limited shortest path, `O(k · E)` once the `O(C² · n)` edges are computed. That removes the exponential growth and is how the tool can go past 2 repeaters. See [docs/METHODOLOGY.md](docs/METHODOLOGY.md#8-repeaters-and-multi-hop-routes).
 

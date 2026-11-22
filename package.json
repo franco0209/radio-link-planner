@@ -1,7 +1,7 @@
 {
   "name": "radio-link-planner",
   "version": "0.1.0",
-  "description": "Modern, accurate point-to-point radio link planner: terrain profile, Fresnel zone, link budget and availability.",
+  "description": "Modern, accurate point-to-point radio link planner: terrain profile, Fresnel zone, link budget and availability. Repeater planning by bounded exhaustive search on the A-B line plus a heuristic corridor search off it.",
   "private": true,
   "type": "module",
   "scripts": {

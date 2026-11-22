@@ -88,6 +88,11 @@ The suggestion search never calls the elevation service. Candidates lie on the A
 5. If nothing is fully viable, the best *marginal* options are returned and labelled as partial improvements. If nothing beats a blocked path, the tool says so and points to manual placement.
 6. For pairs, candidates are an even thinning plus the highest local peaks, so a narrow ridge top is not skipped.
 
+**Paradigm**
+
+- **On the line:** exhaustive search (brute force) over a bounded candidate set, with iterative deepening and memoisation. Not greedy, not divide and conquer, not a metaheuristic.
+- **Off the line:** a heuristic filter-and-refine funnel (corridor, coarse grid, network-free pre-score, verification of a few finalists on real terrain).
+
 **Complexity and exactness**
 
 Let `n` be the number of samples (at most 400), `C ≤ n` the candidate sites, `P ≤ 90` the candidates used for pairs and `H = 5` the mast heights. Scoring one hop is `O(n)`: the mast-height bisection is switched off inside the loop because it costs about 30 times more.
