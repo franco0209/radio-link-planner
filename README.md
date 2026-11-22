@@ -3,7 +3,14 @@
 A modern, accurate point-to-point radio link planner that runs in the browser.
 Drop two sites on a map and see, in seconds, whether a wireless link will work: terrain profile, Fresnel zone, link budget and estimated availability, explained in plain language.
 
+It loads real elevation data between the two sites, checks whether the terrain and the curvature of the earth block the path, and estimates the received signal and how many hours a year the link will be up.
+When the answer is "no", it does not stop there: it tells you how much taller the masts must be, or, if that is not enough, proposes up to two repeater sites and verifies each hop on the real terrain.
+Everything runs in your browser, nothing is installed and nothing is stored on a server: the whole scenario lives in the URL, so you can share it or print it.
+It is meant for quick, honest feasibility checks before a site survey, not as a replacement for field measurements.
+
 > Most online link calculators are dated, cramped and hard to trust. This one aims to be the opposite: clear, fast, and honest about its assumptions.
+
+📡 **Try it now: https://franco0209.github.io/radio-link-planner/**
 
 ## Project status
 
