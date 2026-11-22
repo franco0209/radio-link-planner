@@ -12,6 +12,16 @@ It is meant for quick, honest feasibility checks before a site survey, not as a 
 
 📡 **Try it now: https://franco0209.github.io/radio-link-planner/**
 
+<p align="center">
+  <img src="docs/img/blocked-suggestions.png" alt="A blocked link between Arequipa and Chiguata with two verified repeater options suggested" width="900"><br>
+  <sub><b>A blocked 23 km link:</b> the tool proposes verified repeater sites, ranked by fewest repeaters and lowest masts.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/img/viable-route.png" alt="The same route made viable with two repeaters, with per-hop verdicts and the terrain profile" width="900"><br>
+  <sub><b>The same route with the suggestion applied:</b> three hops, each checked against the terrain, 99.985 % end-to-end availability.</sub>
+</p>
+
 ## Project status
 
 In active development since **October 2026**: about a month of research on propagation models, terrain data and UX, followed by this first working version. The roadmap below shows what is next.
