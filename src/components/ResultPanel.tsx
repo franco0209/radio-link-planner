@@ -1,12 +1,27 @@
+import { HEALTHY_FADE_MARGIN_DB, MAX_EXTRA_HEIGHT_M } from '../core/analysis';
 import { formatAvailability } from '../core/rf';
-import type { LinkAnalysis, Verdict } from '../core/types';
+import type { LinkAnalysis, Reason, Verdict } from '../core/types';
+import { useI18n } from '../i18n';
+import type { Dict } from '../i18n/en';
 
-const LABEL: Record<Verdict, string> = {
-  good: 'Viable link',
-  marginal: 'Marginal link',
-  blocked: 'Link will not work',
-};
 const ICON: Record<Verdict, string> = { good: '✓', marginal: '!', blocked: '✕' };
+
+export function reasonText(t: Dict, r: Reason): string {
+  const fix = (x: { extraM: number; reachable: boolean }) =>
+    x.reachable ? t.reason.fixRaise(x.extraM) : t.reason.fixImpossible(MAX_EXTRA_HEIGHT_M);
+  switch (r.kind) {
+    case 'good':
+      return t.reason.good;
+    case 'blocked':
+      return t.reason.blocked(r.worstKm.toFixed(1), fix(r));
+    case 'lowSignal':
+      return t.reason.lowSignal;
+    case 'fresnel':
+      return t.reason.fresnel(r.worstKm.toFixed(1), fix(r));
+    case 'lowMargin':
+      return t.reason.lowMargin(r.fadeDb.toFixed(0), HEALTHY_FADE_MARGIN_DB);
+  }
+}
 
 interface ResultPanelProps {
   analysis: LinkAnalysis;
@@ -14,28 +29,29 @@ interface ResultPanelProps {
 }
 
 export function ResultPanel({ analysis: r, onApplyHeight }: ResultPanelProps) {
+  const { t } = useI18n();
   const clearPct = Math.max(-100, Math.min(999, r.minClearanceRatio * 100));
   const metrics: { label: string; value: string; tone?: 'ok' | 'warn' | 'bad'; hint: string }[] = [
-    { label: 'Distance', value: `${r.distanceKm.toFixed(2)} km`, hint: 'Great-circle distance between sites' },
+    { label: t.result.distance, value: `${r.distanceKm.toFixed(2)} km`, hint: t.result.distanceHint },
     {
-      label: 'Fade margin',
+      label: t.result.fade,
       value: `${r.fadeMarginDb.toFixed(1)} dB`,
       tone: r.fadeMarginDb >= 15 ? 'ok' : r.fadeMarginDb > 0 ? 'warn' : 'bad',
-      hint: 'Signal above receiver sensitivity. 15 dB or more is healthy',
+      hint: t.result.fadeHint,
     },
-    { label: 'Received signal', value: `${r.rxLevelDbm.toFixed(1)} dBm`, hint: 'Expected level at the receiver' },
+    { label: t.result.rx, value: `${r.rxLevelDbm.toFixed(1)} dBm`, hint: t.result.rxHint },
     {
-      label: 'Fresnel clearance',
+      label: t.result.fresnel,
       value: `${clearPct.toFixed(0)} %`,
       tone: clearPct >= 60 ? 'ok' : clearPct >= 0 ? 'warn' : 'bad',
-      hint: 'Worst point on the path. 60 % or more is the target',
+      hint: t.result.fresnelHint,
     },
-    { label: 'Free-space loss', value: `${r.fsplDb.toFixed(1)} dB`, hint: 'Loss from distance alone' },
+    { label: t.result.fspl, value: `${r.fsplDb.toFixed(1)} dB`, hint: t.result.fsplHint },
     {
-      label: 'Availability',
+      label: t.result.availability,
       value: formatAvailability(r.availabilityPct),
       tone: r.availabilityPct >= 99.9 ? 'ok' : r.availabilityPct >= 99 ? 'warn' : 'bad',
-      hint: 'Estimated yearly uptime from multipath fading',
+      hint: t.result.availabilityHint,
     },
   ];
 
@@ -46,14 +62,14 @@ export function ResultPanel({ analysis: r, onApplyHeight }: ResultPanelProps) {
           {ICON[r.verdict]}
         </span>
         <div>
-          <h2 id="verdict-title">{LABEL[r.verdict]}</h2>
-          <p>{r.headline}</p>
+          <h2 id="verdict-title">{t.result[r.verdict]}</h2>
+          <p>{reasonText(t, r.reason)}</p>
         </div>
       </div>
 
       {r.extraHeightNeededM > 0 && r.extraHeightReachable && (
         <button type="button" className="btn btn-primary btn-block" onClick={() => onApplyHeight(r.extraHeightNeededM)}>
-          Raise both masts by {r.extraHeightNeededM} m
+          {t.result.raise(r.extraHeightNeededM)}
         </button>
       )}
 
@@ -66,12 +82,7 @@ export function ResultPanel({ analysis: r, onApplyHeight }: ResultPanelProps) {
         ))}
       </dl>
 
-      {r.diffractionDb > 0.5 && (
-        <p className="note">
-          Obstruction adds about <strong>{r.diffractionDb.toFixed(1)} dB</strong> of diffraction loss near{' '}
-          {r.worstAtKm.toFixed(1)} km.
-        </p>
-      )}
+      {r.diffractionDb > 0.5 && <p className="note">{t.result.diffraction(r.diffractionDb.toFixed(1), r.worstAtKm.toFixed(1))}</p>}
     </section>
   );
 }

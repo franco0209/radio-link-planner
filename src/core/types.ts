@@ -73,6 +73,13 @@ export interface LinkAnalysis {
   /** Whether the 60 % clearance can be reached at all within the search limit. */
   extraHeightReachable: boolean;
   verdict: Verdict;
-  /** Plain-language summary of the result. */
-  headline: string;
+  /** Structured explanation of the verdict; the UI turns it into a sentence in the user's language. */
+  reason: Reason;
 }
+
+export type Reason =
+  | { kind: 'good' }
+  | { kind: 'blocked'; worstKm: number; extraM: number; reachable: boolean }
+  | { kind: 'lowSignal' }
+  | { kind: 'fresnel'; worstKm: number; extraM: number; reachable: boolean }
+  | { kind: 'lowMargin'; fadeDb: number };

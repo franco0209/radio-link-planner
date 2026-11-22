@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { LatLng } from '../core/types';
+import { useI18n } from '../i18n';
 import { parseCoordinates, searchPlaces, type PlaceResult } from '../services/geocode';
 
 interface PointFieldProps {
@@ -12,6 +13,7 @@ interface PointFieldProps {
 }
 
 export function PointField({ name, point, placing, onPlace, onSet, onClear }: PointFieldProps) {
+  const { t, lang } = useI18n();
   const [text, setText] = useState('');
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [busy, setBusy] = useState(false);
@@ -33,11 +35,11 @@ export function PointField({ name, point, placing, onPlace, onSet, onClear }: Po
     abort.current = new AbortController();
     setBusy(true);
     try {
-      const found = await searchPlaces(q, abort.current.signal);
+      const found = await searchPlaces(q, lang, abort.current.signal);
       setResults(found);
-      if (!found.length) setError('No places found. Try another name or paste "lat, lng".');
+      if (!found.length) setError(t.sites.noResults);
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') setError((e as Error).message);
+      if ((e as Error).name !== 'AbortError') setError(t.errors.searchUnavailable);
     } finally {
       setBusy(false);
     }
@@ -50,16 +52,14 @@ export function PointField({ name, point, placing, onPlace, onSet, onClear }: Po
           {name}
         </span>
         <div className="point-coords">
-          <strong>Site {name}</strong>
-          <span className="muted">
-            {point ? `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}` : 'Not set'}
-          </span>
+          <strong>{t.sites.site(name)}</strong>
+          <span className="muted">{point ? `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}` : t.sites.notSet}</span>
         </div>
         <button type="button" className={`btn btn-small ${placing ? 'btn-active' : ''}`} onClick={onPlace} aria-pressed={placing}>
-          {placing ? 'Click the map…' : point ? 'Move' : 'Pick on map'}
+          {placing ? t.sites.placing : point ? t.sites.move : t.sites.pick}
         </button>
         {point && (
-          <button type="button" className="icon-btn" onClick={onClear} aria-label={`Clear site ${name}`} title="Clear">
+          <button type="button" className="icon-btn" onClick={onClear} aria-label={t.sites.clear(name)} title={t.sites.clearTitle}>
             ×
           </button>
         )}
@@ -75,11 +75,11 @@ export function PointField({ name, point, placing, onPlace, onSet, onClear }: Po
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Search a place or paste lat, lng"
-          aria-label={`Search a place or coordinates for site ${name}`}
+          placeholder={t.sites.placeholder}
+          aria-label={t.sites.searchLabel(name)}
         />
         <button type="submit" className="btn btn-small" disabled={busy || !text.trim()}>
-          {busy ? '…' : 'Go'}
+          {busy ? '…' : t.sites.go}
         </button>
       </form>
       {error && (
@@ -88,7 +88,7 @@ export function PointField({ name, point, placing, onPlace, onSet, onClear }: Po
         </p>
       )}
       {results.length > 0 && (
-        <ul className="results" aria-label="Search results">
+        <ul className="results" aria-label={t.sites.resultsLabel}>
           {results.map((r) => (
             <li key={`${r.point.lat},${r.point.lng}`}>
               <button

@@ -8,13 +8,15 @@ import { analyzeLink } from './core/analysis';
 import { distanceKm } from './core/geo';
 import type { LatLng, LinkParams, TerrainSample } from './core/types';
 import { fetchTerrainProfile } from './services/elevation';
+import { LANGUAGES, useI18n, type Lang } from './i18n';
+import { ServiceError } from './services/errors';
 import { decodeState, encodeState } from './state/urlState';
 
 type Terrain =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'ready'; samples: TerrainSample[]; flat?: boolean }
-  | { status: 'error'; message: string };
+  | { status: 'error'; error: unknown };
 
 const EXAMPLE = {
   a: { lat: -16.3989, lng: -71.535 },
@@ -22,6 +24,15 @@ const EXAMPLE = {
 };
 
 const MIN_KM = 0.05;
+
+function errorText(t: ReturnType<typeof useI18n>['t'], e: unknown): string {
+  if (e instanceof ServiceError) {
+    if (e.code === 'rateLimited') return t.errors.rateLimited;
+    if (e.code === 'elevationHttp') return t.errors.elevationHttp(e.status ?? 0);
+    if (e.code === 'badResponse') return t.errors.badResponse;
+  }
+  return t.errors.loadFailed;
+}
 
 function readTheme(): 'light' | 'dark' {
   try {
@@ -34,6 +45,7 @@ function readTheme(): 'light' | 'dark' {
 }
 
 export default function App() {
+  const { t, lang, setLang } = useI18n();
   const initial = useMemo(() => decodeState(window.location.hash), []);
   const [a, setA] = useState<LatLng | null>(initial.a);
   const [b, setB] = useState<LatLng | null>(initial.b);
@@ -76,7 +88,7 @@ export default function App() {
       fetchTerrainProfile(a, b, ctrl.signal)
         .then((samples) => setTerrain({ status: 'ready', samples }))
         .catch((e: Error) => {
-          if (e.name !== 'AbortError') setTerrain({ status: 'error', message: e.message || 'Could not load terrain data.' });
+          if (e.name !== 'AbortError') setTerrain({ status: 'error', error: e });
         });
     }, 350);
     return () => {
@@ -125,7 +137,7 @@ export default function App() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('Copy this link', window.location.href);
+      window.prompt(t.app.copyPrompt, window.location.href);
     }
   };
 
@@ -142,45 +154,54 @@ export default function App() {
             <circle cx="24" cy="10" r="3" fill="#fff" />
             <path d="M8 22Q16 6 24 10" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeDasharray="1 4" />
           </svg>
-          <h1>Radio Link Planner</h1>
+          <h1>{t.app.title}</h1>
         </div>
         <div className="top-actions">
-          <button type="button" className="btn btn-small" onClick={share} disabled={!a && !b}>
-            {copied ? 'Link copied ✓' : 'Share link'}
+          <select className="lang-select" value={lang} onChange={(e) => setLang(e.target.value as Lang)} aria-label={t.app.language}>
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code} lang={l.code}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn btn-small" onClick={share} disabled={!a && !b} aria-label={copied ? t.app.copied : t.app.share}>
+            <span aria-hidden="true">{copied ? '✓' : '↗'}</span>
+            <span className="lbl">{copied ? t.app.copied : t.app.share}</span>
           </button>
-          <button type="button" className="btn btn-small" onClick={() => window.print()} disabled={!analysis}>
-            Print / PDF
+          <button type="button" className="btn btn-small" onClick={() => window.print()} disabled={!analysis} aria-label={t.app.print}>
+            <span aria-hidden="true">⎙</span>
+            <span className="lbl">{t.app.print}</span>
           </button>
           <button
             type="button"
             className="icon-btn"
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            title="Toggle theme"
+            onClick={() => setTheme((v) => (v === 'dark' ? 'light' : 'dark'))}
+            aria-label={theme === 'dark' ? t.app.themeToLight : t.app.themeToDark}
+            title={t.app.themeToggle}
           >
             {theme === 'dark' ? '☀' : '☾'}
           </button>
         </div>
       </header>
 
-      <aside className="sidebar" aria-label="Link settings">
+      <aside className="sidebar" aria-label={t.app.settings}>
         {analysis && <ResultPanel analysis={analysis} onApplyHeight={(extra) => patchParams({ heightAM: params.heightAM + extra, heightBM: params.heightBM + extra })} />}
 
         {terrain.status === 'loading' && (
           <div className="card status" role="status">
-            <span className="spinner" aria-hidden="true" /> Reading terrain elevation…
+            <span className="spinner" aria-hidden="true" /> {t.app.loadingTerrain}
           </div>
         )}
 
         {terrain.status === 'error' && (
           <div className="card status status-error" role="alert">
-            <p>{terrain.message}</p>
+            <p>{errorText(t, terrain.error)}</p>
             <div className="row">
               <button type="button" className="btn btn-small" onClick={() => setRetry((n) => n + 1)}>
-                Try again
+                {t.app.retry}
               </button>
               <button type="button" className="btn btn-small" onClick={flatFallback}>
-                Assume flat ground
+                {t.app.flatGround}
               </button>
             </div>
           </div>
@@ -188,14 +209,14 @@ export default function App() {
 
         {terrain.status === 'ready' && terrain.flat && (
           <p className="banner" role="note">
-            Showing flat ground at sea level because terrain data is unavailable. Results ignore real hills.
+            {t.app.flatBanner}
           </p>
         )}
 
         {!a && !b && (
           <div className="card empty">
-            <h2>Plan a radio link in two clicks</h2>
-            <p>Place site A and site B on the map, or search for a place. You will see the terrain, the Fresnel zone and whether the link will work.</p>
+            <h2>{t.empty.title}</h2>
+            <p>{t.empty.body}</p>
             <button
               type="button"
               className="btn btn-primary"
@@ -206,7 +227,7 @@ export default function App() {
                 setFitKey(`${Date.now()}`);
               }}
             >
-              Try an example
+              {t.empty.example}
             </button>
           </div>
         )}
@@ -214,7 +235,7 @@ export default function App() {
         <section className="card" aria-labelledby="sites-title">
           <div className="card-head">
             <h2 id="sites-title" className="card-title">
-              Sites
+              {t.sites.title}
             </h2>
             {a && b && (
               <button
@@ -226,7 +247,7 @@ export default function App() {
                   setHoverIndex(null);
                 }}
               >
-                ⇄ Swap
+                {t.sites.swap}
               </button>
             )}
           </div>
@@ -237,7 +258,7 @@ export default function App() {
         <RadioForm params={params} onChange={patchParams} />
 
         <p className="footnote">
-          Terrain: Copernicus 90 m DEM via Open-Meteo. Estimates only; verify on site before installing.
+          {t.app.footnote}
         </p>
       </aside>
 
@@ -253,12 +274,12 @@ export default function App() {
           onMapClick={handleMapClick}
           onDrag={(which, p) => setPoint(which, p)}
         />
-        <section className="profile card" aria-label="Terrain profile">
+        <section className="profile card" aria-label={t.app.profileLabel}>
           {analysis && samples ? (
             <ProfileChart analysis={analysis} samples={samples} params={params} hoverIndex={hoverIndex} onHover={setHoverIndex} />
           ) : (
             <div className="profile-empty">
-              <p>{a && b ? 'The terrain profile will appear here.' : 'Set both sites to see the terrain profile and Fresnel zone.'}</p>
+              <p>{a && b ? t.app.profileWaiting : t.app.profileSetSites}</p>
             </div>
           )}
         </section>

@@ -2,6 +2,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
 import type { LatLng, Verdict } from '../core/types';
+import { useI18n } from '../i18n';
 
 interface MapViewProps {
   a: LatLng | null;
@@ -41,6 +42,9 @@ const pin = (letter: string, cls: string) =>
   });
 
 export function MapView({ a, b, verdict, hover, placing, fitKey, dark, onMapClick, onDrag }: MapViewProps) {
+  const { t } = useI18n();
+  const tRef = useRef(t);
+  tRef.current = t;
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const tiles = useRef<L.TileLayer | null>(null);
@@ -78,6 +82,11 @@ export function MapView({ a, b, verdict, hover, placing, fitKey, dark, onMapClic
     tiles.current.bringToBack();
   }, [layer]);
 
+  // Keep pin tooltips in the current language.
+  useEffect(() => {
+    (['a', 'b'] as const).forEach((k) => markers.current[k]?.getElement()?.setAttribute('title', t.map.pinTitle(k.toUpperCase())));
+  }, [t]);
+
   // Markers.
   useEffect(() => {
     const m = map.current;
@@ -97,7 +106,7 @@ export function MapView({ a, b, verdict, hover, placing, fitKey, dark, onMapClic
       const mk = L.marker([p.lat, p.lng], {
         draggable: true,
         icon: pin(k.toUpperCase(), k === 'a' ? 'pin-a' : 'pin-b'),
-        title: `Site ${k.toUpperCase()} (drag to move)`,
+        title: tRef.current.map.pinTitle(k.toUpperCase()),
         keyboard: true,
       }).addTo(m);
       mk.on('dragend', () => {
@@ -165,18 +174,18 @@ export function MapView({ a, b, verdict, hover, placing, fitKey, dark, onMapClic
 
   return (
     <div className={`map-shell ${dark && layer === 'streets' ? 'map-dark' : ''}`}>
-      <div ref={el} className="map" role="application" aria-label="Map. Click to place sites, drag pins to move them." />
-      <div className="layer-switch" role="group" aria-label="Map style">
+      <div ref={el} className="map" role="application" aria-label={t.map.label} />
+      <div className="layer-switch" role="group" aria-label={t.map.style}>
         <button type="button" aria-pressed={layer === 'streets'} onClick={() => setLayer('streets')}>
-          Map
+          {t.map.streets}
         </button>
         <button type="button" aria-pressed={layer === 'terrain'} onClick={() => setLayer('terrain')}>
-          Terrain
+          {t.map.terrain}
         </button>
       </div>
       {placing && (
         <div className="map-toast" role="status">
-          Click the map to place site {placing.toUpperCase()}
+          {t.map.placeToast(placing.toUpperCase())}
         </div>
       )}
     </div>

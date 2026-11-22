@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LinkAnalysis, LinkParams, TerrainSample } from '../core/types';
+import { useI18n } from '../i18n';
 
 interface ProfileChartProps {
   analysis: LinkAnalysis;
@@ -24,6 +25,7 @@ function niceTicks(min: number, max: number, target: number): number[] {
 }
 
 export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }: ProfileChartProps) {
+  const { t } = useI18n();
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(720);
 
@@ -89,7 +91,7 @@ export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }:
     onHover(Math.max(0, Math.min(profile.length - 1, idx)));
   };
 
-  const summary = `Terrain profile over ${distanceKm.toFixed(1)} kilometres. Worst clearance is ${(analysis.minClearanceRatio * 100).toFixed(0)} percent of the first Fresnel zone at ${analysis.worstAtKm.toFixed(1)} kilometres.`;
+  const summary = t.chart.summary(distanceKm.toFixed(1), (analysis.minClearanceRatio * 100).toFixed(0), analysis.worstAtKm.toFixed(1));
   const tooltipLeft = hp ? Math.min(width - 190, Math.max(8, x(hp.d) + 12)) : 0;
 
   return (
@@ -127,10 +129,10 @@ export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }:
           </text>
         ))}
         <text className="axis-label" x={M.left} y={11}>
-          Elevation (m)
+          {t.chart.elevation}
         </text>
         <text className="axis-label" x={width - M.right} y={HEIGHT - 10} textAnchor="end">
-          km
+          {t.chart.km}
         </text>
 
         {/* Fresnel zone: full first zone, then the 60 % that must stay clear */}
@@ -174,23 +176,23 @@ export function ProfileChart({ analysis, samples, params, onHover, hoverIndex }:
 
       <div className="legend" aria-hidden="true">
         <span>
-          <i className="sw sw-ground" /> Terrain + earth curvature
+          <i className="sw sw-ground" /> {t.chart.legendGround}
         </span>
         <span>
-          <i className="sw sw-los" /> Line of sight
+          <i className="sw sw-los" /> {t.chart.legendLos}
         </span>
         <span>
-          <i className="sw sw-fresnel" /> 1st Fresnel zone (dark = 60 %)
+          <i className="sw sw-fresnel" /> {t.chart.legendFresnel}
         </span>
       </div>
 
       {hp && (
         <div className="tooltip" style={{ left: tooltipLeft, top: 14 }} role="status">
           <strong>{hp.d.toFixed(2)} km</strong>
-          <span>Ground {(samples[hoverIndex!]?.h ?? 0).toFixed(0)} m</span>
+          <span>{t.chart.ground((samples[hoverIndex!]?.h ?? 0).toFixed(0))}</span>
           <span className={hp.clearance < 0 ? 'bad' : hp.clearanceRatio < 0.6 ? 'warn' : 'ok'}>
-            {hp.clearance < 0 ? 'Blocked by' : 'Clearance'} {Math.abs(hp.clearance).toFixed(1)} m
-            {hp.fresnel > 0 && ` (${(hp.clearanceRatio * 100).toFixed(0)}% Fresnel)`}
+            {hp.clearance < 0 ? t.chart.blockedBy : t.chart.clearance} {Math.abs(hp.clearance).toFixed(1)} m
+            {hp.fresnel > 0 && ` (${(hp.clearanceRatio * 100).toFixed(0)}% ${t.chart.fresnelShort})`}
           </span>
         </div>
       )}

@@ -1,4 +1,5 @@
 import type { LatLng } from '../core/types';
+import { ServiceError } from './errors';
 
 export interface PlaceResult {
   label: string;
@@ -15,10 +16,10 @@ export function parseCoordinates(text: string): LatLng | null {
 }
 
 /** Place search through OpenStreetMap Nominatim (user-initiated, low volume). */
-export async function searchPlaces(query: string, signal?: AbortSignal): Promise<PlaceResult[]> {
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(query)}`;
+export async function searchPlaces(query: string, lang: string, signal?: AbortSignal): Promise<PlaceResult[]> {
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=${encodeURIComponent(lang)}&q=${encodeURIComponent(query)}`;
   const res = await fetch(url, { signal, headers: { Accept: 'application/json' } });
-  if (!res.ok) throw new Error('Place search is unavailable right now.');
+  if (!res.ok) throw new ServiceError('searchUnavailable');
   const rows = (await res.json()) as { display_name: string; lat: string; lon: string }[];
   return rows.map((r) => ({ label: r.display_name, point: { lat: Number(r.lat), lng: Number(r.lon) } }));
 }

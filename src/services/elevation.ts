@@ -1,5 +1,6 @@
 import { distanceKm, samplePath } from '../core/geo';
 import type { LatLng, TerrainSample } from '../core/types';
+import { ServiceError } from './errors';
 
 const ENDPOINT = 'https://api.open-meteo.com/v1/elevation';
 const MAX_PER_REQUEST = 100;
@@ -16,10 +17,10 @@ async function fetchChunk(points: LatLng[], signal?: AbortSignal): Promise<numbe
   const lat = points.map((p) => p.lat.toFixed(5)).join(',');
   const lng = points.map((p) => p.lng.toFixed(5)).join(',');
   const res = await fetch(`${ENDPOINT}?latitude=${lat}&longitude=${lng}`, { signal });
-  if (res.status === 429) throw new Error('The elevation service is rate limiting us. Wait a minute and try again.');
-  if (!res.ok) throw new Error(`Elevation service error (${res.status}).`);
+  if (res.status === 429) throw new ServiceError('rateLimited');
+  if (!res.ok) throw new ServiceError('elevationHttp', res.status);
   const json = (await res.json()) as { elevation?: number[] };
-  if (!json.elevation || json.elevation.length !== points.length) throw new Error('Unexpected elevation response.');
+  if (!json.elevation || json.elevation.length !== points.length) throw new ServiceError('badResponse');
   return json.elevation;
 }
 

@@ -19,6 +19,7 @@ In active development since **October 2026**: about a month of research on propa
 - **Link budget.** EIRP, free-space loss, diffraction loss from the worst obstruction, received level, fade margin and yearly availability (Vigants-Barnett).
 - **Linked chart and map.** Hover (or use the arrow keys on) the profile and the exact spot lights up on the map.
 - **Shareable.** The whole scenario lives in the URL. Copy the link, bookmark it, or print a one-page PDF report.
+- **Three languages.** English, Español and Português, detected from the browser and switchable from the header. Text in the core is never hard-coded: results are structured and phrased by the UI.
 - **Accessible and responsive.** Keyboard operable, labelled controls, light and dark themes, works on phones.
 
 ## How it computes
@@ -55,8 +56,11 @@ src/
   core/         Pure TypeScript radio maths (no UI, fully unit-tested)
   services/     Elevation and place-search clients
   state/        URL (de)serialisation
+  i18n/         English / Spanish / Portuguese dictionaries (typed against English)
   components/   Map, profile chart, results, forms
 ```
+
+Adding a language means adding one file typed as `Dict`: the compiler lists every missing string.
 
 The calculation core has no dependency on React or the DOM, so it can be reused in a CLI, an API or a future mobile app.
 

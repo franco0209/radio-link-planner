@@ -1,10 +1,12 @@
 import { availabilityPct, earthBulgeM, freeSpaceLossDb, fresnelRadiusM, knifeEdgeLossDb } from './rf';
-import type { LinkAnalysis, LinkParams, ProfilePoint, TerrainSample, Verdict } from './types';
+import type { LinkAnalysis, LinkParams, ProfilePoint, Reason, TerrainSample, Verdict } from './types';
 
 /** Fraction of the first Fresnel zone that should be free of obstacles. */
 export const TARGET_CLEARANCE = 0.6;
 /** Minimum fade margin considered healthy, dB. */
 export const HEALTHY_FADE_MARGIN_DB = 15;
+/** Largest uniform mast-height increase the search will consider, m. */
+export const MAX_EXTRA_HEIGHT_M = 200;
 
 export const DEFAULT_PARAMS: LinkParams = {
   freqMHz: 5800,
@@ -48,7 +50,7 @@ function worstPoint(profile: ProfilePoint[]): ProfilePoint {
 function extraHeightNeeded(samples: TerrainSample[], p: LinkParams): { m: number; reachable: boolean } {
   const ok = (extra: number) => worstPoint(buildProfile(samples, p, extra)).clearanceRatio >= TARGET_CLEARANCE;
   if (ok(0)) return { m: 0, reachable: true };
-  const LIMIT = 200;
+  const LIMIT = MAX_EXTRA_HEIGHT_M;
   if (!ok(LIMIT)) return { m: LIMIT, reachable: false };
   let lo = 0;
   let hi = LIMIT;
@@ -102,26 +104,22 @@ export function analyzeLink(samples: TerrainSample[], p: LinkParams): LinkAnalys
     extraHeightNeededM: extra.m,
     extraHeightReachable: extra.reachable,
     verdict,
-    headline: buildHeadline(verdict, worst.clearanceRatio, fadeMarginDb, extra, worst.d, blocked),
+    reason: buildReason(verdict, worst.clearanceRatio, fadeMarginDb, extra, worst.d, blocked),
   };
 }
 
-function buildHeadline(
+function buildReason(
   verdict: Verdict,
   ratio: number,
   fade: number,
   extra: { m: number; reachable: boolean },
   worstKm: number,
   blocked: boolean,
-): string {
-  if (verdict === 'good') return 'The path is clear and the link has a healthy fade margin.';
-  const fix = extra.reachable
-    ? `Raising both masts by about ${extra.m} m should clear it.`
-    : 'Even 200 m masts do not clear it; pick different sites.';
-  if (blocked) return `Terrain blocks the direct path near ${worstKm.toFixed(1)} km. ${fix}`;
-  if (fade <= 0) {
-    return 'The signal would arrive below the receiver sensitivity. Use higher-gain antennas, more power or a lower frequency.';
-  }
-  if (ratio < TARGET_CLEARANCE) return `The Fresnel zone is partly obstructed near ${worstKm.toFixed(1)} km. ${fix}`;
-  return `The path is clear, but the fade margin is only ${fade.toFixed(0)} dB. Aim for ${HEALTHY_FADE_MARGIN_DB} dB or more.`;
+): Reason {
+  if (verdict === 'good') return { kind: 'good' };
+  const fix = { worstKm, extraM: extra.m, reachable: extra.reachable };
+  if (blocked) return { kind: 'blocked', ...fix };
+  if (fade <= 0) return { kind: 'lowSignal' };
+  if (ratio < TARGET_CLEARANCE) return { kind: 'fresnel', ...fix };
+  return { kind: 'lowMargin', fadeDb: fade };
 }
