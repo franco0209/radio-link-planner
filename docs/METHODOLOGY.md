@@ -88,6 +88,17 @@ The suggestion search never calls the elevation service. Candidates lie on the A
 5. If nothing is fully viable, the best *marginal* options are returned and labelled as partial improvements. If nothing beats a blocked path, the tool says so and points to manual placement.
 6. For pairs, candidates are an even thinning plus the highest local peaks, so a narrow ridge top is not skipped.
 
+**Complexity and exactness**
+
+Let `n` be the number of samples (at most 400), `C ≤ n` the candidate sites, `P ≤ 90` the candidates used for pairs and `H = 5` the mast heights. Scoring one hop is `O(n)`: the mast-height bisection is switched off inside the loop because it costs about 30 times more.
+
+- One repeater: `O(H · C · n)`, which is `O(H · n²)`.
+- Two repeaters: `O(H · P² · n)`. The hop from A and the hop to B are memoised per `(slice, mast heights)`, so each pair adds only one new `O(n)` hop. Without the cap on `P` this would be `O(H · n³)`.
+- Because the search deepens by repeater count and mast height and stops at the first viable layer, the common case is far cheaper than the worst case.
+- It is **not** a metaheuristic: it is deterministic and exhaustive over the candidate set. It is optimal for one repeater, and for two when `C ≤ P`. Above that the candidate set is pruned by thinning plus local peaks, never the scoring. The test suite checks both claims against an independent brute force.
+
+The same problem can be written as a graph (sites are nodes, viable hops are edges weighted `−ln(availability)`), where "at most k repeaters" is a hop-limited shortest path. That would avoid the exponential growth in `k` and is the planned route to more than two repeaters.
+
 Applying a suggestion reuses the exact terrain slices it was scored on, so the result you see matches the card you clicked.
 
 The suggest button appears only when the direct link is **blocked** and no repeaters are set. Marginal links do not get it: raising the masts or adjusting the radio comes first.

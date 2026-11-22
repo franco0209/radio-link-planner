@@ -63,6 +63,52 @@ describe('orderRepeaters', () => {
   });
 });
 
+/**
+ * Independent reference: try every candidate position (or pair) through the public route API at one
+ * mast height and keep the best end-to-end availability among fully viable routes.
+ */
+function bruteForceBest(direct: TerrainSample[], count: 1 | 2, heightM: number, minHopKm = 0.25): number {
+  const n = direct.length;
+  const total = direct[n - 1].d;
+  const cands = direct.map((_, i) => i).filter((i) => i > 0 && i < n - 1 && direct[i].d >= minHopKm && total - direct[i].d >= minHopKm);
+  const rebase = (a: number, b: number) => direct.slice(a, b + 1).map((s) => ({ ...s, d: s.d - direct[a].d }));
+  let best = -1;
+  const consider = (idx: number[]) => {
+    const nodes = [0, ...idx, n - 1];
+    const hops = nodes.slice(0, -1).map((from, k) => rebase(from, nodes[k + 1]));
+    const r = analyzeRoute(hops, DEFAULT_PARAMS, [DEFAULT_PARAMS.heightAM, ...idx.map(() => heightM), DEFAULT_PARAMS.heightBM], { heightSearch: false });
+    if (r.verdict === 'good') best = Math.max(best, r.availabilityPct);
+  };
+  if (count === 1) cands.forEach((c) => consider([c]));
+  else for (const x of cands) for (const y of cands) if (y > x && direct[y].d - direct[x].d >= minHopKm) consider([x, y]);
+  return best;
+}
+
+describe('optimality against brute force', () => {
+  it('1 repeater: the suggestion is the best candidate on the profile', () => {
+    const direct = path(20, 167, [{ atKm: 10, h: 300 }]);
+    const top = suggestRepeaters(direct, DEFAULT_PARAMS)[0];
+    expect(top.repeaters).toHaveLength(1);
+    expect(top.availabilityPct).toBeCloseTo(bruteForceBest(direct, 1, top.repeaters[0].heightM), 9);
+  });
+
+  it('2 repeaters (no thinning needed): the suggestion is the best pair on the profile', () => {
+    const direct = path(21, 75, [
+      { atKm: 7, h: 300 },
+      { atKm: 14, h: 300 },
+    ]);
+    const top = suggestRepeaters(direct, DEFAULT_PARAMS)[0];
+    expect(top.repeaters).toHaveLength(2);
+    expect(top.availabilityPct).toBeCloseTo(bruteForceBest(direct, 2, top.repeaters[0].heightM), 9);
+  });
+
+  it('never returns a worse option than a cheaper (fewer repeaters) viable one exists', () => {
+    const direct = path(20, 167, [{ atKm: 10, h: 300 }]);
+    expect(bruteForceBest(direct, 1, 10)).toBeGreaterThan(0);
+    expect(suggestRepeaters(direct, DEFAULT_PARAMS)[0].repeaters).toHaveLength(1);
+  });
+});
+
 describe('suggestRepeaters', () => {
   it('puts one repeater on a single ridge and every hop comes out viable', () => {
     const direct = path(20, 167, [{ atKm: 10, h: 300 }]);

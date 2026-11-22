@@ -23,6 +23,59 @@ In active development since **October 2026**: about a month of research on propa
 - **Three languages.** English, Español and Português, detected from the browser and switchable from the header. Text in the core is never hard-coded: results are structured and phrased by the UI.
 - **Accessible and responsive.** Keyboard operable, labelled controls, light and dark themes, works on phones.
 
+## How the repeater search works
+
+This is the part that sets the project apart: a blocked link gets a **verified repeater plan**, not a guess.
+
+**Is it a heuristic?** No metaheuristic (no genetic algorithm, no annealing) and nothing random. Evaluating one candidate is closed-form physics (terrain, earth bulge, Fresnel, diffraction, link budget). Only *where to put the repeaters* is combinatorial, and that space is small and discrete, so the search is **deterministic and exhaustive over a discretised candidate set**, organised as iterative deepening with memoisation.
+
+**Input**
+
+- The A–B terrain profile already loaded: `n` samples (distance, ground elevation, coordinates), `n ≤ 400`, about one every 120 m.
+- Radio parameters: frequency, TX power, antenna gains, cable losses, receiver sensitivity, k-factor, terrain factor, extra losses, and the masts at A and B.
+- Options: repeater mast ladder (10, 15, 20, 30, 45 m), minimum hop length, number of results.
+
+**Output**: up to 3 options, each with the repeater sites (coordinates, distance from A, ground elevation, mast height), end-to-end availability, weakest-hop fade margin and hop lengths.
+
+**Algorithm**
+
+```
+for count in [1, 2]:                       # fewest repeaters first
+  for h in [10, 15, 20, 30, 45]:           # lowest mast first
+    for each candidate site (or pair) on the A-B line:
+      split the profile into hops          # each hop is a slice of the same samples
+      score every hop with the same analyzer as a single link
+      route is "viable" if every hop has 60 % Fresnel clearance and a 15 dB fade margin
+    if any viable route exists:
+      return the best 3, ranked by end-to-end availability then weakest-hop margin,
+             kept at least 8 % of the path apart
+fallback: best partial improvements (marginal), else "no solution on the line"
+```
+
+Why this ordering: a solution with one repeater is never replaced by one with two, and a shorter mast is cheaper to build. Within that, availability decides.
+
+**Complexity**
+
+`n` = samples, `C ≤ n` = candidate sites, `P ≤ 90` = candidates used for pairs, `H = 5` mast heights. Scoring one hop is `O(n)` (no iterative height search inside the loop).
+
+| Case | Time | Notes |
+|---|---|---|
+| 1 repeater | `O(H · C · n)` = `O(H · n²)` | Every sample is a candidate; each needs 2 hop evaluations |
+| 2 repeaters | `O(H · P² · n)` | Hops from A and to B are memoised, so only the middle hop is new per pair. Without the cap on `P` it would be `O(H · n³)` |
+| Memory | `O(P² + n)` | Memo table and cached slices |
+| Best case | `O(C · n)` | Stops at the first mast height with a viable single repeater |
+
+Measured on a desktop: about **20 ms** for the real Arequipa → Chiguata example, **under 600 ms** in the worst case (400 samples and nothing viable, so every pass runs). The search runs without blocking the interface, and it makes **no extra elevation requests**.
+
+**How exact is it?**
+
+- **1 repeater: optimal** over the sampled positions.
+- **2 repeaters: optimal when `C ≤ 90`.** Above that the candidate set is pruned (even thinning plus the highest local peaks, because a ridge top is the classic site). The pruning is on *where to look*, never on how a route is scored.
+- Both claims are checked in the test suite against an independent brute force that goes through the public route API.
+- Limits: positions are on the straight A–B line and on a ~120 m grid, and fading on different hops is assumed independent.
+
+**A graph view, for later.** Treat candidate sites as nodes and a viable hop as an edge weighted `−ln(availability)`. Then "at most k repeaters" is a hop-limited shortest path, `O(k · E)` once the `O(C² · n)` edges are computed. That removes the exponential growth and is how the tool can go past 2 repeaters. See [docs/METHODOLOGY.md](docs/METHODOLOGY.md#8-repeaters-and-multi-hop-routes).
+
 ## How it computes
 
 | Quantity | Method |
