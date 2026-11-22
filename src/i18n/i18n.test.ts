@@ -36,6 +36,7 @@ describe('translations', () => {
     expect(d.reason.lowMargin('7', 15)).toContain('7');
     expect(d.reason.lowMargin('7', 15)).toContain('15');
     expect(d.errors.elevationHttp(503)).toContain('503');
+    expect(d.suggest.atOff('5.5', '2.1', '830')).toContain('2.1');
     expect(d.sites.site('B')).toContain('B');
     expect(d.chart.summary('14.3', '40', '9.5')).toContain('14.3');
   });

@@ -103,6 +103,8 @@ export interface SuggestedRepeater extends Repeater {
   atKm: number;
   /** Ground elevation at the site, m a.s.l. */
   elevationM: number;
+  /** Distance from the A-B line, km. Absent (or 0) for sites found on the line. */
+  offKm?: number;
 }
 
 export interface RepeaterSuggestion {
@@ -111,6 +113,8 @@ export interface RepeaterSuggestion {
   availabilityPct: number;
   minFadeMarginDb: number;
   hopKm: number[];
+  /** Terrain of each hop, for suggestions found off the A-B line, so applying one reuses what it was scored on. */
+  hopTerrain?: TerrainSample[][];
 }
 
 export type Reason =

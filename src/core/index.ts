@@ -4,3 +4,4 @@ export * from './rf';
 export * from './analysis';
 export * from './route';
 export * from './repeaters';
+export * from './offaxis';

@@ -47,3 +47,14 @@ export async function fetchTerrainProfile(a: LatLng, b: LatLng, signal?: AbortSi
   cache.set(key, samples);
   return samples;
 }
+
+/** Ground elevation of arbitrary points. Chunks of 100, two requests at a time to stay clear of the rate limit. */
+export async function fetchElevations(points: LatLng[], signal?: AbortSignal): Promise<number[]> {
+  const chunks: LatLng[][] = [];
+  for (let i = 0; i < points.length; i += MAX_PER_REQUEST) chunks.push(points.slice(i, i + MAX_PER_REQUEST));
+  const parts: number[][] = [];
+  for (let i = 0; i < chunks.length; i += 2) {
+    parts.push(...(await Promise.all(chunks.slice(i, i + 2).map((c) => fetchChunk(c, signal)))));
+  }
+  return parts.flat();
+}

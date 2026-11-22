@@ -7,12 +7,13 @@ import { RepeaterForm } from './components/RepeaterForm';
 import { ResultPanel } from './components/ResultPanel';
 import { SuggestionPanel } from './components/SuggestionPanel';
 import { distanceKm } from './core/geo';
+import { mergeSuggestions, needsOffAxis, suggestOffAxis } from './core/offaxis';
 import { MAX_REPEATERS, suggestRepeaters } from './core/repeaters';
 import { analyzeRoute, orderRepeaters } from './core/route';
 import type { LatLng, LinkParams, Repeater, RepeaterSuggestion, TerrainSample } from './core/types';
 import { LANGUAGES, useI18n, type Lang } from './i18n';
 import { ServiceError } from './services/errors';
-import { fetchTerrainProfile } from './services/elevation';
+import { fetchElevations, fetchTerrainProfile } from './services/elevation';
 import { decodeState, encodeState, fmtPoint } from './state/urlState';
 
 type Terrain =
@@ -76,7 +77,10 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<RepeaterSuggestion[] | null>(null);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
   const [suggesting, setSuggesting] = useState(false);
+  const [searchingOff, setSearchingOff] = useState(false);
+  const [offFailed, setOffFailed] = useState(false);
   const suggestToken = useRef(0);
+  const offCtrl = useRef<AbortController | null>(null);
   /** Terrain per hop, keyed by its endpoints. Also seeded when a suggestion is applied. */
   const hopCache = useRef(new Map<string, TerrainSample[]>());
 
@@ -135,8 +139,11 @@ export default function App() {
   // Suggestions describe one specific situation, so any change invalidates them.
   useEffect(() => {
     suggestToken.current += 1;
+    offCtrl.current?.abort();
     setSuggestions(null);
     setPreviewIdx(null);
+    setSearchingOff(false);
+    setOffFailed(false);
   }, [routeKey, params]);
 
   const heights = useMemo(() => [params.heightAM, ...repeaters.map((r) => r.heightM), params.heightBM], [params.heightAM, params.heightBM, repeaters]);
@@ -203,33 +210,63 @@ export default function App() {
     bump(hop + 1);
   };
 
+  /** Drop any running off-line search and ignore whatever it still returns. */
+  const cancelOffAxis = () => {
+    suggestToken.current += 1;
+    offCtrl.current?.abort();
+    setSearchingOff(false);
+  };
+
   const suggest = () => {
-    if (!hopSamples || repeaters.length > 0 || suggesting) return;
+    if (!hopSamples || !a || !b || repeaters.length > 0 || suggesting) return;
+    cancelOffAxis(); // a search from an earlier click must not merge into this one
     setPreviewIdx(null);
+    setOffFailed(false);
     setSuggesting(true);
     const token = suggestToken.current;
     // The worst case (nothing works) takes a few hundred ms; let the button repaint first.
     setTimeout(() => {
-      const found = suggestRepeaters(hopSamples[0], params);
+      const onLine = suggestRepeaters(hopSamples[0], params);
       setSuggesting(false);
-      if (token === suggestToken.current) setSuggestions(found); // drop results if the scene changed meanwhile
+      if (token !== suggestToken.current) return; // the scene changed meanwhile
+      setSuggestions(onLine);
+      if (!needsOffAxis(onLine)) return;
+      const ctrl = new AbortController();
+      offCtrl.current = ctrl;
+      setSearchingOff(true);
+      suggestOffAxis(a, b, params, { elevations: fetchElevations, profile: fetchTerrainProfile }, {}, ctrl.signal)
+        .then((res) => {
+          if (token !== suggestToken.current) return;
+          setSuggestions((cur) => mergeSuggestions(cur ?? [], res.suggestions));
+        })
+        .catch((e: Error) => {
+          if (e.name !== 'AbortError' && token === suggestToken.current) setOffFailed(true);
+        })
+        .finally(() => {
+          if (token === suggestToken.current) setSearchingOff(false);
+        });
     }, 30);
   };
 
   const applySuggestion = (s: RepeaterSuggestion) => {
     if (!hopSamples || !a || !b || repeaters.length > 0) return;
-    const direct = hopSamples[0];
     const reps: Repeater[] = s.repeaters.map((r) => ({ ...round5(r), heightM: r.heightM }));
-    const idx = [0, ...s.repeaters.map((r) => direct.findIndex((p) => p.lat === r.lat && p.lng === r.lng)), direct.length - 1];
-    if (idx.some((i) => i < 0)) return;
-    // Reuse the exact terrain the suggestion was scored on, so what you see matches what was promised.
     const pts = [a, ...reps, b];
-    for (let k = 0; k < pts.length - 1; k++) {
-      const d0 = direct[idx[k]].d;
-      hopCache.current.set(
-        hopKey(pts[k], pts[k + 1]),
-        direct.slice(idx[k], idx[k + 1] + 1).map((p) => ({ ...p, d: p.d - d0 })),
-      );
+    if (s.hopTerrain) {
+      // Found off the line: reuse the exact profiles it was scored on.
+      s.hopTerrain.forEach((samples, k) => hopCache.current.set(hopKey(pts[k], pts[k + 1]), samples));
+    } else {
+      const direct = hopSamples[0];
+      const idx = [0, ...s.repeaters.map((r) => direct.findIndex((p) => p.lat === r.lat && p.lng === r.lng)), direct.length - 1];
+      if (idx.some((i) => i < 0)) return;
+      // Reuse the exact terrain the suggestion was scored on, so what you see matches what was promised.
+      for (let k = 0; k < pts.length - 1; k++) {
+        const d0 = direct[idx[k]].d;
+        hopCache.current.set(
+          hopKey(pts[k], pts[k + 1]),
+          direct.slice(idx[k], idx[k + 1] + 1).map((p) => ({ ...p, d: p.d - d0 })),
+        );
+      }
     }
     setRepeaters(reps);
     setSuggestions(null);
@@ -311,9 +348,12 @@ export default function App() {
         {suggestions && repeaters.length === 0 && (
           <SuggestionPanel
             suggestions={suggestions}
+            searchingOff={searchingOff}
+            offFailed={offFailed}
             onApply={applySuggestion}
             onPreview={setPreviewIdx}
             onClose={() => {
+              cancelOffAxis();
               setSuggestions(null);
               setPreviewIdx(null);
             }}

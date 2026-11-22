@@ -99,13 +99,28 @@ Let `n` be the number of samples (at most 400), `C ≤ n` the candidate sites, `
 
 The same problem can be written as a graph (sites are nodes, viable hops are edges weighted `−ln(availability)`), where "at most k repeaters" is a hop-limited shortest path. That would avoid the exponential growth in `k` and is the planned route to more than two repeaters.
 
-Applying a suggestion reuses the exact terrain slices it was scored on, so the result you see matches the card you clicked.
+Applying a suggestion reuses the exact terrain it was scored on, so the result you see matches the card you clicked.
+
+**Search off the A–B line**
+
+Hilltops beside the line are often better than anything on it, but each site off the line needs two new terrain profiles from the elevation service (up to about 8 requests for a long link), and that service rate-limits. So the search is a funnel built to fetch as little as possible, and it is a **heuristic**:
+
+1. The line search above runs first and costs nothing. The off-line search starts only if it did not find a single viable repeater.
+2. **Corridor.** A site R is allowed if `|AR| + |RB| ≤ 1.15 · |AB|` (an ellipse with A and B as foci, so it narrows towards the ends) and it is at most 20 % of `|AB|` away from the line.
+3. **Coarse grid.** A 20 × 9 grid over that corridor (180 points, two elevation requests) is fetched. A and B are grid nodes.
+4. **Pre-score, no network.** Every grid node off the line is scored with rough terrain interpolated bilinearly from the grid, using the same `analyzeLink` and mast ladder.
+5. **Finalists.** The best 5 sites, kept at least 8 % of `|AB|` apart, get their *real* terrain fetched with the same loader manual placement uses, one site at a time and best first. Fetching stops as soon as 3 viable sites are confirmed. Only these real profiles decide the verdict and are applied.
+6. One off-line repeater is compared with the line results by the usual rule (viable first, fewest repeaters, lowest mast, availability), so a single off-line site can outrank two on the line.
+
+Cost: 2 elevation requests plus roughly 2 to 8 per finalist, so typically 10 to 25 in total and never the hundreds a one-by-one search would need. Computation is `O(cols · rows · n)` and negligible next to the network.
+
+It is **not exact**: a narrow peak between grid nodes can be missed, a site that looks poor on rough terrain is never verified, and two repeaters off the line are not searched. It never reports a site it did not verify on real terrain. The test suite uses a mocked elevation service to check that it finds a gap around walls no on-line site can clear, that it returns the terrain it scored on, and that the request count stays bounded.
 
 The suggest button appears only when the direct link is **blocked** and no repeaters are set. Marginal links do not get it: raising the masts or adjusting the radio comes first.
 
 ## Known limits
 
-- Repeater suggestions only search the **straight A–B line**. A hilltop off the line may be better; place a repeater by hand and drag it there.
+- Off-line suggestions are limited to **one** repeater, inside a corridor around the line, and found by a heuristic (see above). For two off-line repeaters or a peak outside the corridor, place them by hand.
 - When you add repeaters yourself, the tool analyses the route you drew but does not propose a better one.
 
 - No rain fading, atmospheric absorption or foliage model (use *Extra losses* to account for them).

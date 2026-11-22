@@ -4,12 +4,15 @@ import { useI18n } from '../i18n';
 
 interface SuggestionPanelProps {
   suggestions: RepeaterSuggestion[];
+  /** The slower search off the A-B line is still running. */
+  searchingOff?: boolean;
+  offFailed?: boolean;
   onApply: (s: RepeaterSuggestion) => void;
   onPreview: (index: number | null) => void;
   onClose: () => void;
 }
 
-export function SuggestionPanel({ suggestions, onApply, onPreview, onClose }: SuggestionPanelProps) {
+export function SuggestionPanel({ suggestions, searchingOff, offFailed, onApply, onPreview, onClose }: SuggestionPanelProps) {
   const { t } = useI18n();
   const partial = suggestions.length > 0 && suggestions.every((s) => s.verdict !== 'good');
 
@@ -24,10 +27,23 @@ export function SuggestionPanel({ suggestions, onApply, onPreview, onClose }: Su
         </button>
       </div>
 
-      {suggestions.length === 0 ? (
-        <p className="note" role="status">
-          {t.suggest.none}
+      {searchingOff && (
+        <p className="note status" role="status">
+          <span className="spinner" aria-hidden="true" /> {t.suggest.searchingOff}
         </p>
+      )}
+      {offFailed && (
+        <p className="banner" role="note">
+          {t.suggest.offFailed}
+        </p>
+      )}
+
+      {suggestions.length === 0 ? (
+        !searchingOff && (
+          <p className="note" role="status">
+            {t.suggest.none}
+          </p>
+        )
       ) : (
         <>
           <p className="note">{t.suggest.intro}</p>
@@ -58,7 +74,7 @@ export function SuggestionPanel({ suggestions, onApply, onPreview, onClose }: Su
                         R{k + 1}
                       </span>
                       <span>
-                        {t.suggest.at(r.atKm.toFixed(1), r.elevationM.toFixed(0))} · {t.suggest.mast(r.heightM)}
+                        {r.offKm ? t.suggest.atOff(r.atKm.toFixed(1), r.offKm.toFixed(1), r.elevationM.toFixed(0)) : t.suggest.at(r.atKm.toFixed(1), r.elevationM.toFixed(0))} · {t.suggest.mast(r.heightM)}
                       </span>
                     </li>
                   ))}
