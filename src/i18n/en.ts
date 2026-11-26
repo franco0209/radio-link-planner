@@ -15,7 +15,7 @@ export const en = {
     flatGround: 'Assume flat ground',
     flatBanner: 'Showing flat ground at sea level because terrain data is unavailable. Results ignore real hills.',
     copyPrompt: 'Copy this link',
-    footnote: 'Terrain: Copernicus 90 m DEM via Open-Meteo. Estimates only; verify on site before installing.',
+    footnote: 'Terrain: Copernicus 90 m DEM (bundled for Peru, via Open-Meteo elsewhere). Estimates only; verify on site before installing.',
     profileLabel: 'Terrain profile',
     profileWaiting: 'The terrain profile will appear here.',
     profileSetSites: 'Set both sites to see the terrain profile and Fresnel zone.',

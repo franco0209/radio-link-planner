@@ -29,7 +29,7 @@ In active development since **October 2026**: about a month of research on propa
 ## Features
 
 - **Map first.** Place sites A and B by clicking, dragging pins, searching a place name or pasting `lat, lng`. Street and topographic map styles.
-- **Real terrain.** Elevation profile from the Copernicus 90 m DEM, sampled about every 120 m. Southern Peru around Arequipa (lat −18° to −15°, lng −73° to −70°) is bundled with the app, so it loads instantly and makes **no API calls**; anywhere else falls back to the Open-Meteo elevation service.
+- **Real terrain.** Elevation profile from the Copernicus 90 m DEM, sampled about every 120 m. All of Peru, plus a border margin of about 10 km, is bundled with the app, so profiles there load from the site itself (each 1° tile is downloaded only when needed) and make **no API calls**; anywhere else falls back to the Open-Meteo elevation service.
 - **Fresnel zone and earth curvature.** The profile shows terrain with earth bulge (configurable k-factor), the line of sight and the first Fresnel zone, with the 60 % core highlighted.
 - **Plain-language verdict.** *Viable*, *Marginal* or *Will not work*, with the reason and the fix. Never colour alone: every state has an icon and a label.
 - **"How high do I need to build?"** Finds the smallest equal mast-height increase that reaches 60 % Fresnel clearance, applied with one click.
@@ -164,7 +164,7 @@ React 19, TypeScript, Vite, Leaflet, Vitest. The chart is hand-written SVG, so t
 
 ## Data and attribution
 
-Terrain: Copernicus DEM GLO-90 through [Open-Meteo](https://open-meteo.com/). Maps: © OpenStreetMap contributors and OpenTopoMap (CC-BY-SA). Place search: Nominatim. Please respect their usage policies if you deploy this publicly.
+Terrain: Copernicus DEM GLO-90, bundled for Peru from the [AWS Open Data bucket](https://registry.opendata.aws/copernicus-dem/) and served by [Open-Meteo](https://open-meteo.com/) elsewhere. Country outline used to pick the tiles: Natural Earth. Maps: © OpenStreetMap contributors and OpenTopoMap (CC-BY-SA). Place search: Nominatim. Please respect their usage policies if you deploy this publicly.
 
 ## License
 

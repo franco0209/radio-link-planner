@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
 import { TILE_SIZE, elevationsFromTiles, localElevations, sampleTile, tileId, tileOf } from './dem';
@@ -88,6 +88,33 @@ describe('bundled tile S17_W072', () => {
       [-16.65, -71.45, 2853],
     ];
     for (const [lat, lng, h] of api) expect(Math.abs(sampleTile(tile, -17, -72, { lat, lng }) - h)).toBeLessThan(40);
+  });
+});
+
+describe('bundled coverage of Peru', () => {
+  const index = JSON.parse(readFileSync('public/dem/index.json', 'utf8')) as { tiles: string[] };
+
+  // Open-Meteo answers, fetched for these coordinates on 2026-11-25.
+  const cities: [string, number, number, number][] = [
+    ['Lima', -12.05, -77.04, 148],
+    ['Cusco', -13.52, -71.97, 3382],
+    ['Iquitos', -3.75, -73.25, 96],
+    ['Piura', -5.19, -80.63, 31],
+    ['Puno', -15.84, -70.02, 3817],
+    ['Tacna', -18.01, -70.25, 571],
+    ['Puerto Maldonado', -12.59, -69.19, 203],
+  ];
+
+  it.each(cities)('has terrain for %s that agrees with the elevation service', (_, lat, lng, h) => {
+    const { id, lat0, lng0 } = tileOf({ lat, lng });
+    expect(index.tiles).toContain(id);
+    const tile = new Int16Array(gunzipSync(readFileSync(`public/dem/${id}.bin.gz`)).buffer.slice(0));
+    expect(Math.abs(sampleTile(tile, lat0, lng0, { lat, lng }) - h)).toBeLessThan(40);
+  });
+
+  it('lists exactly the tile files that are bundled', () => {
+    const files = readdirSync('public/dem').filter((f) => f.endsWith('.bin.gz'));
+    expect(index.tiles).toEqual(files.map((f) => f.replace('.bin.gz', '')).sort());
   });
 });
 

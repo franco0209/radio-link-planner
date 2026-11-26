@@ -16,7 +16,7 @@ export const es: Dict = {
     flatGround: 'Suponer terreno plano',
     flatBanner: 'Se muestra terreno plano a nivel del mar porque no hay datos de terreno. Los resultados ignoran los cerros reales.',
     copyPrompt: 'Copia este enlace',
-    footnote: 'Terreno: DEM Copernicus de 90 m vía Open-Meteo. Son solo estimaciones; verifica en campo antes de instalar.',
+    footnote: 'Terreno: DEM Copernicus de 90 m (incluido para Perú; en otras zonas vía Open-Meteo). Son solo estimaciones; verifica en campo antes de instalar.',
     profileLabel: 'Perfil del terreno',
     profileWaiting: 'El perfil del terreno aparecerá aquí.',
     profileSetSites: 'Define ambos sitios para ver el perfil del terreno y la zona de Fresnel.',

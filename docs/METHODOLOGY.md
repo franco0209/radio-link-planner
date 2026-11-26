@@ -5,7 +5,7 @@ Distances are in km, frequency in MHz, heights in metres unless stated.
 
 ## 1. Path and terrain
 
-The great-circle path between A and B is sampled every ~120 m (30 to 400 samples). Ground elevation at each sample comes from the Copernicus 90 m DEM served by Open-Meteo. Elevations are bare-earth: **buildings and trees are not included**, so urban and forested paths need extra clearance on top of what the tool shows.
+The great-circle path between A and B is sampled every ~120 m (30 to 400 samples). Ground elevation at each sample comes from the Copernicus 90 m DEM: tiles bundled with the app for Peru, the Open-Meteo service elsewhere (see section 8). Elevations are bare-earth: **buildings and trees are not included**, so urban and forested paths need extra clearance on top of what the tool shows.
 
 ## 2. Earth curvature
 
